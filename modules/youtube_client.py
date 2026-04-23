@@ -1,5 +1,6 @@
 import os
 import re
+from datetime import datetime, timezone, timedelta
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -42,13 +43,28 @@ def fetch_youtube_data(url: str) -> tuple:
     while req and len(comments) < 100:
         resp = req.execute()
         for item in resp.get("items", []):
-            text = item["snippet"]["topLevelComment"]["snippet"]["textDisplay"]
-            text = text.strip().replace("\n", " ")
+            snippet = item["snippet"]["topLevelComment"]["snippet"]
+            text = snippet["textDisplay"].strip().replace("\n", " ")
+            date = snippet.get("publishedAt", "")
             if text:
-                comments.append(f"- {text}")
+                comments.append({"text": text, "date": date})
         req = youtube.commentThreads().list_next(req, resp)
 
     if not comments:
         raise ValueError("Videodan yorum çekilemedi (yorumlar kapalı olabilir).")
 
-    return safe_name, "\n".join(comments[:100]), title
+    return safe_name, comments[:100], title
+
+
+def split_by_date(comments: list) -> tuple:
+    cutoff = datetime.now(timezone.utc) - timedelta(days=90)
+    recent, older = [], []
+    for c in comments:
+        try:
+            dt = datetime.fromisoformat(c["date"].replace("Z", "+00:00"))
+            bucket = recent if dt >= cutoff else older
+        except (ValueError, KeyError):
+            bucket = older
+        bucket.append(f"- {c['text']}")
+
+    return "\n".join(recent), "\n".join(older)

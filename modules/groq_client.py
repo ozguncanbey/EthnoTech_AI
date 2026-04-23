@@ -6,18 +6,14 @@ from dotenv import load_dotenv
 load_dotenv()
 _client = Groq(api_key=os.environ["GROQ_API_KEY"])
 
-
-def analyze_artist(raw_comments: str, artist_name: str) -> str:
-    prompt = f"""
+_BASE_PROMPT = """
 Sen Londra merkezli, 20 yıllık deneyime sahip bir Müzik A&R (Yetenek Avcısı) uzmanısın.
 Anadolu ve Orta Doğu geleneksel enstrümanları ile Londra elektronik müzik sahnesi (Deep House, Techno, Afro-House) konusunda derin uzmanlığa sahipsin.
-Sana sunulan ham sosyal medya yorumlarını analiz et ve aşağıdaki formatta kapsamlı bir rapor hazırla.
 ÖNEMLİ: Puan verirken mutlaka "X/10" formatını kullan (örnek: 8/10).
 
 SANATÇI: {artist_name}
 
-YORUMLAR:
-{raw_comments}
+{comments_block}
 
 ═══════════════════════════════════════════════════
 R A P O R
@@ -54,12 +50,64 @@ R A P O R
    - Orta Vade  (6-18 ay): Gelişim adımları
    - Uzun Vade  (18+ ay): Hedefler
    - En Kritik Aksiyon: Tek bir cümleyle en acil öneri
-"""
+{trend_section}"""
+
+_TREND_SECTION = """
+7. TREND ANALİZİ:
+   Son 3 aydaki yorumlarla daha eski yorumları tematik ve duygusal açıdan karşılaştır.
+   - Son 3 Ay Özeti: [genel duygu tonu ve öne çıkan temalar]
+   - Daha Eskiler Özeti: [genel duygu tonu ve öne çıkan temalar]
+   - Momentum: [Yükselen Yıldız / Stabil / Düşüşte] — [tek cümle gerekçe]"""
+
+
+def _call(prompt: str) -> str:
     response = _client.chat.completions.create(
         model="llama-3.3-70b-versatile",
         messages=[{"role": "user", "content": prompt}],
     )
     return response.choices[0].message.content
+
+
+def analyze_artist(raw_comments: str, artist_name: str) -> str:
+    comments_block = f"YORUMLAR:\n{raw_comments}"
+    prompt = _BASE_PROMPT.format(
+        artist_name=artist_name,
+        comments_block=comments_block,
+        trend_section="",
+    )
+    return _call(prompt)
+
+
+def analyze_with_trend(recent_str: str, older_str: str, artist_name: str) -> tuple:
+    recent_block = recent_str if recent_str else "(Bu dönemde yorum bulunamadı)"
+    older_block = older_str if older_str else "(Bu dönemde yorum bulunamadı)"
+    comments_block = (
+        f"YORUMLAR — SON 3 AY ({len(recent_str.splitlines()) if recent_str else 0} yorum):\n"
+        f"{recent_block}\n\n"
+        f"YORUMLAR — DAHA ESKİLER ({len(older_str.splitlines()) if older_str else 0} yorum):\n"
+        f"{older_block}"
+    )
+    prompt = _BASE_PROMPT.format(
+        artist_name=artist_name,
+        comments_block=comments_block,
+        trend_section=_TREND_SECTION,
+    )
+    report_text = _call(prompt)
+    trend_label = _extract_trend(report_text)
+    return report_text, trend_label
+
+
+def _extract_trend(text: str) -> str:
+    m = re.search(r"Momentum:\s*(Yükselen Yıldız|Stabil|Düşüşte)", text, re.IGNORECASE)
+    if m:
+        label = m.group(1).strip()
+        mapping = {
+            "yükselen yıldız": "Yükselen Yıldız",
+            "stabil": "Stabil",
+            "düşüşte": "Düşüşte",
+        }
+        return mapping.get(label.lower(), label)
+    return "Stabil"
 
 
 def extract_scores(report_text: str) -> dict:

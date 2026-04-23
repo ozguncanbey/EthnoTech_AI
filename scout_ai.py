@@ -7,7 +7,7 @@ load_dotenv()
 
 from modules.config import DATA_DIR, REPORTS_DIR
 from modules.report import build_summary_html, process_and_save
-from modules.youtube_client import fetch_youtube_data
+from modules.youtube_client import fetch_youtube_data, split_by_date
 
 
 def run_single() -> None:
@@ -76,26 +76,35 @@ def run_youtube() -> None:
 
     print("\nVideo bilgileri alınıyor...")
     try:
-        artist_name, raw_comments, title = fetch_youtube_data(url)
+        artist_name, comments_list, title = fetch_youtube_data(url)
     except Exception as e:
         print(f"Hata: {e}")
         sys.exit(1)
 
-    print(f"  Video  : {title}")
-    print(f"  Ad     : {artist_name.replace('_', ' ')}")
-    print(f"  Yorum  : {len(raw_comments.splitlines())} adet çekildi")
+    recent_str, older_str = split_by_date(comments_list)
+    raw_comments = "\n".join(f"- {c['text']}" for c in comments_list)
+
+    print(f"  Video       : {title}")
+    print(f"  Ad          : {artist_name.replace('_', ' ')}")
+    print(f"  Son 3 ay    : {len(recent_str.splitlines()) if recent_str else 0} yorum")
+    print(f"  Daha eskiler: {len(older_str.splitlines()) if older_str else 0} yorum")
 
     edited = input(f"\nSanatçı adını onaylayın veya değiştirin [{artist_name.replace('_', ' ')}]: ").strip()
     if edited:
         artist_name = edited.replace(" ", "_")
 
-    _analyze_and_open(artist_name, raw_comments)
+    _analyze_and_open(artist_name, raw_comments, recent_str, older_str)
 
 
-def _analyze_and_open(artist_name: str, raw_comments: str) -> None:
+def _analyze_and_open(
+    artist_name: str,
+    raw_comments: str,
+    recent_str: str = None,
+    older_str: str = None,
+) -> None:
     print(f"\nAnaliz ediliyor: {artist_name.replace('_', ' ')}...")
     try:
-        result = process_and_save(artist_name, raw_comments)
+        result = process_and_save(artist_name, raw_comments, recent_str, older_str)
         print(f"Londra Pazarı Puanı: {result['scores']['Londra Uyumluluğu']}/10")
         subprocess.run(["open", str(REPORTS_DIR / f"{artist_name}_rapor.html")])
     except Exception as e:

@@ -13,8 +13,14 @@
   .label{color:var(--accent);font-size:11px;letter-spacing:3px;text-transform:uppercase;margin-bottom:6px}
   header h1{font-size:34px;font-weight:700}
   .meta{color:var(--muted);font-size:13px;margin-top:6px}
+  .badges{display:flex;gap:10px;flex-wrap:wrap;margin-top:12px;align-items:center}
   .score-badge{display:inline-block;padding:5px 18px;border-radius:20px;font-size:17px;font-weight:700;
-    background:rgba(255,255,255,.06);color:$badge_color;border:2px solid $badge_color;margin-top:12px}
+    background:rgba(255,255,255,.06);color:$badge_color;border:2px solid $badge_color}
+  .trend-badge{display:inline-flex;align-items:center;gap:6px;padding:5px 16px;border-radius:20px;
+    font-size:14px;font-weight:700}
+  .trend-rising{background:rgba(74,222,128,.12);color:#4ade80;border:2px solid #4ade80}
+  .trend-stable{background:rgba(250,204,21,.12);color:#facc15;border:2px solid #facc15}
+  .trend-declining{background:rgba(248,113,113,.12);color:#f87171;border:2px solid #f87171}
   .grid{display:grid;grid-template-columns:1fr 1fr;gap:24px;margin-bottom:28px}
   @media(max-width:620px){.grid{grid-template-columns:1fr}}
   .card{background:var(--card);border-radius:12px;padding:24px;border:1px solid var(--border)}
@@ -41,7 +47,10 @@
     <div class="label">EthnoTech AI Scout — A&R Raporu</div>
     <h1>$display_name</h1>
     <div class="meta">Oluşturulma: $date</div>
-    <div class="score-badge">Londra Pazarı: $london_score/10</div>
+    <div class="badges">
+      <div class="score-badge">Londra Pazarı: $london_score/10</div>
+      $trend_badge
+    </div>
   </header>
 
   <div class="grid">

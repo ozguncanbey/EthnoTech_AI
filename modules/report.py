@@ -6,7 +6,7 @@ from string import Template
 from modules.chart import score_color, generate_radar_chart
 from modules.config import REPORTS_DIR, TEMPLATES_DIR
 from modules.database import load_all, save_analysis
-from modules.groq_client import analyze_artist, extract_scores
+from modules.groq_client import analyze_artist, analyze_with_trend, extract_scores
 
 
 def _load_template(name: str) -> Template:
@@ -54,7 +54,20 @@ def format_report_body(text: str) -> str:
     return "\n".join(html_lines)
 
 
-def build_artist_html(report_text: str, artist_name: str, scores: dict, chart_b64: str) -> str:
+_TREND_CONFIG = {
+    "Yükselen Yıldız": ("trend-rising",  "⬆"),
+    "Stabil":           ("trend-stable",  "→"),
+    "Düşüşte":          ("trend-declining","⬇"),
+}
+
+
+def build_artist_html(
+    report_text: str,
+    artist_name: str,
+    scores: dict,
+    chart_b64: str,
+    trend_label: str = None,
+) -> str:
     london = scores["Londra Uyumluluğu"]
     display_name = artist_name.replace("_", " ")
 
@@ -68,6 +81,12 @@ def build_artist_html(report_text: str, artist_name: str, scores: dict, chart_b6
             f"</div>"
         )
 
+    if trend_label and trend_label in _TREND_CONFIG:
+        css_class, icon = _TREND_CONFIG[trend_label]
+        trend_badge = f'<div class="trend-badge {css_class}">{icon} {trend_label}</div>'
+    else:
+        trend_badge = ""
+
     return _load_template("artist_report.html").substitute(
         display_name=display_name,
         date=datetime.now().strftime("%d %B %Y, %H:%M"),
@@ -77,6 +96,7 @@ def build_artist_html(report_text: str, artist_name: str, scores: dict, chart_b6
         persona_items=persona_items,
         chart_b64=chart_b64,
         report_body=format_report_body(report_text),
+        trend_badge=trend_badge,
     )
 
 
@@ -115,11 +135,21 @@ def build_summary_html(results: list = None) -> str:
     )
 
 
-def process_and_save(artist_name: str, raw_comments: str) -> dict:
-    report_text = analyze_artist(raw_comments, artist_name)
+def process_and_save(
+    artist_name: str,
+    raw_comments: str,
+    recent_str: str = None,
+    older_str: str = None,
+) -> dict:
+    if recent_str is not None and older_str is not None:
+        report_text, trend_label = analyze_with_trend(recent_str, older_str, artist_name)
+    else:
+        report_text = analyze_artist(raw_comments, artist_name)
+        trend_label = None
+
     scores = extract_scores(report_text)
     chart_b64 = generate_radar_chart(scores, artist_name)
-    html = build_artist_html(report_text, artist_name, scores, chart_b64)
+    html = build_artist_html(report_text, artist_name, scores, chart_b64, trend_label)
 
     REPORTS_DIR.mkdir(exist_ok=True)
     out = REPORTS_DIR / f"{artist_name}_rapor.html"
