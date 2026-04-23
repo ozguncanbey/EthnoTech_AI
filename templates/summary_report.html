@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+<meta charset="UTF-8">
+<title>EthnoTech AI Scout — Özet Rapor</title>
+<style>
+  body{background:#0f0f1a;color:#e0e0e0;font-family:'Segoe UI',system-ui,sans-serif;padding:40px 20px}
+  .container{max-width:880px;margin:0 auto}
+  .label{color:#e94560;font-size:11px;letter-spacing:3px;text-transform:uppercase;margin-bottom:6px}
+  header{border-left:4px solid #e94560;padding:22px 26px;background:#1a1a2e;border-radius:0 12px 12px 0;margin-bottom:32px}
+  header h1{font-size:28px;font-weight:700}
+  .winner{background:#1a1a2e;border-radius:12px;padding:32px;margin-bottom:28px;border:2px solid #e94560;text-align:center}
+  .winner h2{color:#e94560;font-size:11px;letter-spacing:3px;text-transform:uppercase;margin-bottom:10px}
+  .winner .name{font-size:38px;font-weight:700}
+  .winner .sub{color:#888;margin-top:8px}
+  table{width:100%;border-collapse:collapse;background:#1a1a2e;border-radius:12px;overflow:hidden}
+  th{background:#16213e;padding:14px 16px;text-align:left;color:#888;font-size:11px;text-transform:uppercase;letter-spacing:1px}
+  td{padding:14px 16px;border-bottom:1px solid #2a2a4a}
+  tr:last-child td{border-bottom:none}
+  a{color:#e94560;text-decoration:none}
+  footer{text-align:center;color:#555;font-size:12px;margin-top:40px}
+</style>
+</head>
+<body>
+<div class="container">
+  <header>
+    <div class="label">EthnoTech AI Scout</div>
+    <h1>Özet Rapor — $date</h1>
+  </header>
+  <div class="winner">
+    <h2>Londra Pazarı İçin En Uygun Aday</h2>
+    <div class="name">$best_name</div>
+    <div class="sub">Londra Pazarı Uyumluluğu: $best_score/10</div>
+  </div>
+  <table>
+    <thead>
+      <tr>
+        <th>#</th><th>Sanatçı</th>
+        <th style="text-align:center">Karizma</th>
+        <th style="text-align:center">Gizem</th>
+        <th style="text-align:center">Sahne Enerjisi</th>
+        <th style="text-align:center">Londra Uyumluluğu</th>
+      </tr>
+    </thead>
+    <tbody>$table_rows</tbody>
+  </table>
+  <footer>EthnoTech AI Scout &nbsp;·&nbsp; Groq + Llama 3.3 70B &nbsp;·&nbsp; $year</footer>
+</div>
+</body>
+</html>
