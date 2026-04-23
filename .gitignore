@@ -1,0 +1,24 @@
+# Ortam değişkenleri — API key'leri asla commit'leme
+.env
+.env.*
+
+# Python sanal ortam
+.venv/
+venv/
+env/
+
+# Python cache
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Üretilen raporlar — kaynak değil, çıktı
+Reports/
+
+# macOS sistem dosyaları
+.DS_Store
+
+# IDE
+.vscode/
+.idea/
