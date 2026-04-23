@@ -21,7 +21,7 @@ if not api_key:
 
 client = Groq(api_key=api_key)
 
-COMMENTS_DIR = Path("comments")
+COMMENTS_DIR = Path("Data")
 REPORTS_DIR = Path("Reports")
 
 
