@@ -5,6 +5,7 @@ from string import Template
 
 from modules.chart import score_color, generate_radar_chart
 from modules.config import REPORTS_DIR, TEMPLATES_DIR
+from modules.database import load_all, save_analysis
 from modules.groq_client import analyze_artist, extract_scores
 
 
@@ -79,8 +80,11 @@ def build_artist_html(report_text: str, artist_name: str, scores: dict, chart_b6
     )
 
 
-def build_summary_html(results: list) -> str:
-    ranked = sorted(results, key=lambda x: x["scores"]["Londra Uyumluluğu"], reverse=True)
+def build_summary_html(results: list = None) -> str:
+    all_records = load_all()
+    if not all_records:
+        all_records = results or []
+    ranked = sorted(all_records, key=lambda x: x["scores"]["Londra Uyumluluğu"], reverse=True)
     best = ranked[0]
     medals = ["🥇", "🥈", "🥉"]
 
@@ -88,6 +92,7 @@ def build_summary_html(results: list) -> str:
     for i, r in enumerate(ranked):
         s = r["scores"]
         medal = medals[i] if i < 3 else f"#{i + 1}"
+        analyzed_at = r.get("analyzed_at", "")[:10]
         rows += (
             f"<tr>"
             f"<td>{medal}</td>"
@@ -97,6 +102,7 @@ def build_summary_html(results: list) -> str:
             f'<td style="color:{score_color(s["Sahne Enerjisi"])};text-align:center">{s["Sahne Enerjisi"]}/10</td>'
             f'<td style="color:{score_color(s["Londra Uyumluluğu"])};text-align:center;font-weight:700">'
             f'{s["Londra Uyumluluğu"]}/10</td>'
+            f'<td style="color:#555;text-align:center;font-size:12px">{analyzed_at}</td>'
             f"</tr>"
         )
 
@@ -114,8 +120,15 @@ def process_and_save(artist_name: str, raw_comments: str) -> dict:
     scores = extract_scores(report_text)
     chart_b64 = generate_radar_chart(scores, artist_name)
     html = build_artist_html(report_text, artist_name, scores, chart_b64)
+
     REPORTS_DIR.mkdir(exist_ok=True)
     out = REPORTS_DIR / f"{artist_name}_rapor.html"
     out.write_text(html, encoding="utf-8")
     print(f"  Kaydedildi → {out}")
+
+    save_analysis(artist_name, scores)
+
+    summary_path = REPORTS_DIR / "_ozet_rapor.html"
+    summary_path.write_text(build_summary_html(), encoding="utf-8")
+
     return {"artist": artist_name, "scores": scores}
