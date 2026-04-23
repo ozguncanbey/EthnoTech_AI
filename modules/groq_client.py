@@ -50,7 +50,12 @@ R A P O R
    - Orta Vade  (6-18 ay): Gelişim adımları
    - Uzun Vade  (18+ ay): Hedefler
    - En Kritik Aksiyon: Tek bir cümleyle en acil öneri
-{trend_section}"""
+{trend_section}
+7. FINAL KARARI — BAŞ GÖZLEMCİ DEĞERLENDİRMESİ:
+   Çekingen olma. Baş Gözlemci olarak net, cesur ve profesyonel kararlarını açıkla.
+   - Yatırım Kararı: [EVET / HAYIR / ŞARTLI] — Gerekçeni tek paragrafta savun.
+   - İletişime Geçilecek Kulüp: Londra'da bu sanatçı için en uygun 1-3 spesifik gece kulübü veya venue (gerçek isimlerle: Fabric, Fold, EartH, Corsica Studios vb.) ve neden.
+   - Global Referans Star: Bu sanatçının müzikal DNA'sına en yakın 1 global isim ve bu benzerliğin pazarlama açısından nasıl kullanılabileceği."""
 
 _TREND_SECTION = """
 7. TREND ANALİZİ:
