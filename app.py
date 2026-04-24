@@ -271,6 +271,21 @@ hr { border-color: var(--border) !important; }
 .trend-r { background: rgba(0,255,135,0.12); color: #00ff87; border: 1px solid rgba(0,255,135,0.3); }
 .trend-s { background: rgba(255,215,0,0.12);  color: #ffd700; border: 1px solid rgba(255,215,0,0.3); }
 .trend-d { background: rgba(255,71,87,0.12);  color: #ff4757; border: 1px solid rgba(255,71,87,0.3); }
+.sign-now-badge {
+  font-size: 10px;
+  font-weight: 800;
+  padding: 3px 9px;
+  border-radius: 10px;
+  letter-spacing: 1px;
+  background: rgba(0,255,135,0.18);
+  color: #00ff87;
+  border: 1px solid rgba(0,255,135,0.5);
+  animation: pulse-sign 2s infinite;
+}
+@keyframes pulse-sign {
+  0%,100% { box-shadow: 0 0 0 0 rgba(0,255,135,0.4); }
+  50%      { box-shadow: 0 0 8px 3px rgba(0,255,135,0.2); }
+}
 
 /* ── METRIC BARS ── */
 .metric-row {
@@ -410,13 +425,26 @@ def _artist_card(r: dict, rank: str, delay_base: float = 0.0) -> str:
         bar("Londra Uyumluluğu", s["Londra Uyumluluğu"],"mf-purple", delay_base + 0.36)
     )
 
+    london = s["Londra Uyumluluğu"]
+    if london >= 9:
+        london_color = "#4ade80"
+        sign_badge = '<span class="sign-now-badge">⚡ SIGN NOW</span>'
+    elif london >= 7:
+        london_color = "#facc15"
+        sign_badge = ""
+    else:
+        london_color = "#f87171"
+        sign_badge = ""
+
     return (
         f'<div class="artist-card">'
         f'<div class="card-header">'
         f'<span class="card-rank">{rank}</span>'
         f'<span class="card-name">{name}</span>'
         f'{trend_html}'
-        f'<span class="card-london">{s["Londra Uyumluluğu"]}/10</span>'
+        f'{sign_badge}'
+        f'<span class="card-london" style="background:none;-webkit-text-fill-color:{london_color};color:{london_color}">'
+        f'{london}/10</span>'
         f'<span class="card-date">{date}</span>'
         f'</div>'
         f'{bars}'

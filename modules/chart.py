@@ -7,9 +7,10 @@ import numpy as np
 
 
 def score_color(score: int) -> str:
-    if score >= 8:
+    """9-10: SIGN NOW (yeşil) | 7-8: ortalama (sarı) | ≤6: yetersiz (kırmızı)"""
+    if score >= 9:
         return "#4ade80"
-    elif score >= 6:
+    elif score >= 7:
         return "#facc15"
     return "#f87171"
 
