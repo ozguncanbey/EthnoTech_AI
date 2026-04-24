@@ -55,7 +55,14 @@ R A P O R
    Çekingen olma. Baş Gözlemci olarak net, cesur ve profesyonel kararlarını açıkla.
    - Yatırım Kararı: [EVET / HAYIR / ŞARTLI] — Gerekçeni tek paragrafta savun.
    - İletişime Geçilecek Kulüp: Londra'da bu sanatçı için en uygun 1-3 spesifik gece kulübü veya venue (gerçek isimlerle: Fabric, Fold, EartH, Corsica Studios vb.) ve neden.
-   - Global Referans Star: Bu sanatçının müzikal DNA'sına en yakın 1 global isim ve bu benzerliğin pazarlama açısından nasıl kullanılabileceği."""
+   - Global Referans Star: Bu sanatçının müzikal DNA'sına en yakın 1 global isim ve bu benzerliğin pazarlama açısından nasıl kullanılabileceği.
+
+---
+SKOR_OZET (bu 4 satırı raporun en sonuna AYNEN ekle, sadece rakam yaz):
+SKOR_KARIZMA: [1-10]
+SKOR_GIZEM: [1-10]
+SKOR_SAHNE: [1-10]
+SKOR_LONDRA: [1-10]"""
 
 _TREND_SECTION = """
 7. TREND ANALİZİ:
@@ -117,14 +124,33 @@ def _extract_trend(text: str) -> str:
 
 def extract_scores(report_text: str) -> dict:
     scores = {"Karizma": 7, "Gizem": 7, "Sahne Enerjisi": 7, "Londra Uyumluluğu": 7}
-    patterns = {
-        "Karizma": r"Karizma[^0-9]*(\d+)/10",
-        "Gizem": r"Gizem[^0-9]*(\d+)/10",
-        "Sahne Enerjisi": r"Sahne Enerjisi[^0-9]*(\d+)/10",
-        "Londra Uyumluluğu": r"LONDRA PAZARI UYUMLULUĞU[^0-9]*(\d+)/10",
+
+    # Katman 1: yapılandırılmış SKOR_ satırları (en güvenilir)
+    structured = {
+        "Karizma":          r"SKOR_KARIZMA\s*:\s*(\d+)",
+        "Gizem":            r"SKOR_GIZEM\s*:\s*(\d+)",
+        "Sahne Enerjisi":   r"SKOR_SAHNE\s*:\s*(\d+)",
+        "Londra Uyumluluğu":r"SKOR_LONDRA\s*:\s*(\d+)",
     }
-    for key, pattern in patterns.items():
-        m = re.search(pattern, report_text, re.IGNORECASE)
+    found = 0
+    for key, pat in structured.items():
+        m = re.search(pat, report_text, re.IGNORECASE)
         if m:
-            scores[key] = int(m.group(1))
+            scores[key] = max(1, min(10, int(m.group(1))))
+            found += 1
+    if found == 4:
+        return scores
+
+    # Katman 2: esnek regex — bold (**8**), parantez ((8/10)), boşluk (8 / 10)
+    flexible = {
+        "Karizma":           r"Karizma[^0-9]{0,40}\*{0,2}(\d+)\*{0,2}\s*/\s*10",
+        "Gizem":             r"Gizem[^0-9]{0,40}\*{0,2}(\d+)\*{0,2}\s*/\s*10",
+        "Sahne Enerjisi":    r"Sahne\s*Enerjisi[^0-9]{0,40}\*{0,2}(\d+)\*{0,2}\s*/\s*10",
+        "Londra Uyumluluğu": r"LONDRA[^0-9]{0,60}\*{0,2}(\d+)\*{0,2}\s*/\s*10",
+    }
+    for key, pat in flexible.items():
+        m = re.search(pat, report_text, re.IGNORECASE)
+        if m:
+            scores[key] = max(1, min(10, int(m.group(1))))
+
     return scores

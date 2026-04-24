@@ -2,9 +2,11 @@ import streamlit as st
 import streamlit.components.v1 as components
 import pandas as pd
 
+from modules.chart import generate_radar_chart
 from modules.config import REPORTS_DIR
-from modules.database import load_all
-from modules.report import process_and_save
+from modules.database import load_all, save_analysis
+from modules.groq_client import analyze_artist, analyze_with_trend, extract_scores
+from modules.report import build_artist_html, build_summary_html
 from modules.youtube_client import fetch_youtube_data, split_by_date
 
 st.set_page_config(
@@ -40,13 +42,35 @@ for key, default in [("report_html", None), ("current_artist", None)]:
 
 
 def _run_analysis(artist_name: str, raw_comments: str,
-                  recent_str: str = None, older_str: str = None) -> None:
-    result = process_and_save(artist_name, raw_comments, recent_str, older_str)
-    html_path = REPORTS_DIR / f"{artist_name}_rapor.html"
-    if html_path.exists():
-        st.session_state.report_html = html_path.read_text(encoding="utf-8")
+                  recent_str: str = None, older_str: str = None) -> dict:
+    with st.status("Analiz başlatılıyor...", expanded=True) as status:
+
+        if recent_str is not None and older_str is not None:
+            st.write("🤖 Trend analizi için AI çağrılıyor (15-20 sn)...")
+            report_text, trend_label = analyze_with_trend(recent_str, older_str, artist_name)
+        else:
+            st.write("🤖 AI analizi yapılıyor (15-20 sn)...")
+            report_text = analyze_artist(raw_comments, artist_name)
+            trend_label = None
+
+        st.write("📊 Puanlar çıkarılıyor ve radar grafiği oluşturuluyor...")
+        scores = extract_scores(report_text)
+        chart_b64 = generate_radar_chart(scores, artist_name)
+        html = build_artist_html(report_text, artist_name, scores, chart_b64, trend_label)
+
+        st.write("💾 Rapor ve veritabanı kaydediliyor...")
+        REPORTS_DIR.mkdir(exist_ok=True)
+        out = REPORTS_DIR / f"{artist_name}_rapor.html"
+        out.write_text(html, encoding="utf-8")
+        save_analysis(artist_name, scores)
+        (REPORTS_DIR / "_ozet_rapor.html").write_text(build_summary_html(), encoding="utf-8")
+
+        st.session_state.report_html = html
         st.session_state.current_artist = artist_name
-    return result
+
+        status.update(label="✅ Analiz tamamlandı!", state="complete", expanded=False)
+
+    return {"artist": artist_name, "scores": scores}
 
 
 def _load_artist_report(artist_name: str) -> None:
@@ -77,7 +101,7 @@ with st.sidebar:
                 st.error("Lütfen bir YouTube linki girin.")
             else:
                 try:
-                    with st.spinner("Video bilgileri alınıyor..."):
+                    with st.spinner("📡 Video bilgileri alınıyor..."):
                         artist_name, comments_list, title = fetch_youtube_data(url)
 
                     if artist_override.strip():
@@ -94,10 +118,7 @@ with st.sidebar:
                         f"Daha eskiler: **{older_count}** yorum"
                     )
 
-                    with st.spinner("Analiz yapılıyor..."):
-                        _run_analysis(artist_name, raw_comments, recent_str, older_str)
-
-                    st.success("Analiz tamamlandı!")
+                    _run_analysis(artist_name, raw_comments, recent_str, older_str)
                     st.rerun()
 
                 except Exception as e:
@@ -119,9 +140,7 @@ with st.sidebar:
             else:
                 try:
                     artist_name = artist_name_input.strip().replace(" ", "_")
-                    with st.spinner("Analiz yapılıyor..."):
-                        _run_analysis(artist_name, comments_input)
-                    st.success("Analiz tamamlandı!")
+                    _run_analysis(artist_name, comments_input)
                     st.rerun()
                 except Exception as e:
                     st.error(f"Hata: {e}")
