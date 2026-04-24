@@ -563,11 +563,14 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # ── TABS ──────────────────────────────────────────────────────
-tab_report, tab_radar, tab_bot = st.tabs(
-    ["📄 Sanatçı Raporu", "◈ A&R Radar", "🎯 Hunter Bot"]
+tab_radar, tab_report, tab_bot = st.tabs(
+    ["◈ A&R Radar", "📄 Sanatçı Raporu", "🎯 Hunter Bot"]
 )
 
-# ── TAB 1: SANATÇI RAPORU ─────────────────────────────────────
+# ── TAB 1: A&R RADAR (default) ────────────────────────────────
+# (Tab içeriği aşağıda tab_radar bloğunda)
+
+# ── TAB 2: SANATÇI RAPORU ─────────────────────────────────────
 with tab_report:
     if st.session_state.report_html:
         components.html(st.session_state.report_html, height=1500, scrolling=True)
@@ -591,14 +594,47 @@ with tab_report:
                 } for h in history]).set_index("Tarih")
                 st.line_chart(df_h, height=220)
     else:
-        st.markdown("""
-        <div class="empty-state">
-          <div class="empty-icon">◈</div>
-          <div class="empty-title">Henüz rapor seçilmedi</div>
-          <div class="empty-sub">Sol panelden bir YouTube linki girin<br>
-          veya kayıtlı bir sanatçıya tıklayın.</div>
-        </div>
-        """, unsafe_allow_html=True)
+        # Rapor seçili değilse sanatçı listesini göster
+        all_records = load_all()
+        if not all_records:
+            st.markdown("""
+            <div class="empty-state">
+              <div class="empty-icon">◈</div>
+              <div class="empty-title">Henüz analiz yapılmadı</div>
+              <div class="empty-sub">Sol panelden bir YouTube linki veya yorum girin.</div>
+            </div>
+            """, unsafe_allow_html=True)
+        else:
+            st.markdown(
+                '<div style="font-size:13px;color:#5a5a7a;letter-spacing:1.5px;'
+                'text-transform:uppercase;margin-bottom:20px;">Sanatçı Seç</div>',
+                unsafe_allow_html=True
+            )
+            ranked_rp = sorted(all_records,
+                               key=lambda x: x["scores"]["Londra Uyumluluğu"],
+                               reverse=True)
+            medals = ["🥇", "🥈", "🥉"]
+            cols = st.columns(3)
+            for i, r in enumerate(ranked_rp):
+                name  = r["artist"].replace("_", " ")
+                score = r["scores"]["Londra Uyumluluğu"]
+                rank  = medals[i] if i < 3 else f"#{i+1}"
+                with cols[i % 3]:
+                    st.markdown(
+                        f'<div style="background:#0e0e1a;border:1px solid #1c1c30;'
+                        f'border-radius:12px;padding:16px 18px;margin-bottom:12px;">'
+                        f'<div style="font-size:18px;margin-bottom:6px;">{rank}</div>'
+                        f'<div style="font-weight:700;font-size:15px;color:#e8e8f4;'
+                        f'margin-bottom:4px;">{name}</div>'
+                        f'<div style="font-size:13px;background:linear-gradient(135deg,#00ff87,#00d4ff);'
+                        f'-webkit-background-clip:text;-webkit-text-fill-color:transparent;'
+                        f'font-weight:800;">{score}/10</div>'
+                        f'</div>',
+                        unsafe_allow_html=True
+                    )
+                    if st.button("Raporu Gör", key=f"rp_{r['artist']}"):
+                        _load_artist_report(r["artist"])
+                        st.rerun()
 
 # ── TAB 2: A&R RADAR ─────────────────────────────────────────
 with tab_radar:
