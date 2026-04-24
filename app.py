@@ -244,18 +244,22 @@ hr { border-color: var(--border) !important; }
   color: var(--text);
 }
 .card-london {
+  display: inline-block;
   font-size: 24px;
   font-weight: 800;
   background: var(--grad);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
+  flex-shrink: 0;
 }
 .card-date {
+  display: inline-block;
   font-size: 11px;
   color: var(--muted);
-  margin-left: 8px;
+  margin-left: 4px;
   align-self: flex-end;
   padding-bottom: 3px;
+  flex-shrink: 0;
 }
 .card-trend {
   font-size: 11px;
@@ -406,18 +410,18 @@ def _artist_card(r: dict, rank: str, delay_base: float = 0.0) -> str:
         bar("Londra Uyumluluğu", s["Londra Uyumluluğu"],"mf-purple", delay_base + 0.36)
     )
 
-    return f"""
-    <div class="artist-card">
-      <div class="card-header">
-        <div class="card-rank">{rank}</div>
-        <div class="card-name">{name}</div>
-        {trend_html}
-        <div class="card-london">{s['Londra Uyumluluğu']}/10</div>
-        <div class="card-date">{date}</div>
-      </div>
-      {bars}
-    </div>
-    """
+    return (
+        f'<div class="artist-card">'
+        f'<div class="card-header">'
+        f'<span class="card-rank">{rank}</span>'
+        f'<span class="card-name">{name}</span>'
+        f'{trend_html}'
+        f'<span class="card-london">{s["Londra Uyumluluğu"]}/10</span>'
+        f'<span class="card-date">{date}</span>'
+        f'</div>'
+        f'{bars}'
+        f'</div>'
+    )
 
 
 # ── Analysis runner ───────────────────────────────────────────
@@ -627,12 +631,13 @@ with tab_radar:
 
         st.markdown("<div style='height:20px'></div>", unsafe_allow_html=True)
 
-        # ── Artist cards ──
+        # ── Artist cards — tek blokta render (Streamlit escaping önlemi) ──
         medals = ["🥇", "🥈", "🥉"]
-        for i, r in enumerate(ranked):
-            rank_label = medals[i] if i < 3 else f"#{i+1}"
-            st.markdown(_artist_card(r, rank_label, delay_base=i * 0.05),
-                        unsafe_allow_html=True)
+        all_cards = "".join(
+            _artist_card(r, medals[i] if i < 3 else f"#{i+1}", delay_base=i * 0.05)
+            for i, r in enumerate(ranked)
+        )
+        st.markdown(all_cards, unsafe_allow_html=True)
 
         st.markdown(
             f'<div style="text-align:center;padding:16px;font-size:12px;color:#5a5a7a;">'
