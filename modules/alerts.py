@@ -6,10 +6,10 @@ Sinyal koşulları:
   RISING     : londra puanı önceki analize göre > RISE_THRESHOLD (varsayılan 1) arttı
 """
 import logging
-import os
 
 import requests
 from dotenv import load_dotenv
+from modules.config import get_secret
 
 load_dotenv()
 
@@ -59,8 +59,8 @@ def check_signals(
 
 # ── Telegram bildirimi ────────────────────────────────────────
 def send_telegram(message: str) -> None:
-    token    = os.getenv("TELEGRAM_BOT_TOKEN", "").strip()
-    chat_ids = [c.strip() for c in os.getenv("TELEGRAM_CHAT_IDS", "").split(",") if c.strip()]
+    token    = get_secret("TELEGRAM_BOT_TOKEN")
+    chat_ids = [c.strip() for c in get_secret("TELEGRAM_CHAT_IDS").split(",") if c.strip()]
 
     if not token or not chat_ids:
         log.warning("Telegram yapılandırılmamış — TELEGRAM_BOT_TOKEN veya TELEGRAM_CHAT_IDS eksik.")

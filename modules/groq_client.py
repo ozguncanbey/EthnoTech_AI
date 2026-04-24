@@ -2,9 +2,20 @@ import os
 import re
 from groq import Groq
 from dotenv import load_dotenv
+from modules.config import get_secret
 
 load_dotenv()
-_client = Groq(api_key=os.environ["GROQ_API_KEY"])
+_client: Groq | None = None
+
+
+def _get_client() -> Groq:
+    global _client
+    if _client is None:
+        key = get_secret("GROQ_API_KEY")
+        if not key:
+            raise ValueError("GROQ_API_KEY bulunamadı. .env veya Streamlit secrets'ı kontrol edin.")
+        _client = Groq(api_key=key)
+    return _client
 
 _BASE_PROMPT = """
 Sen EthnoTech Intelligence platformunun baş uzmanısın: Londra merkezli, 20 yıllık deneyime sahip bir Ethno-Tech Specialist ve A&R direktörüsün.
@@ -78,7 +89,7 @@ _TREND_SECTION = """
 
 
 def _call(prompt: str) -> str:
-    response = _client.chat.completions.create(
+    response = _get_client().chat.completions.create(
         model="llama-3.3-70b-versatile",
         messages=[{"role": "user", "content": prompt}],
     )

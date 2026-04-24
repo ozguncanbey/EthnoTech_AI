@@ -2,6 +2,7 @@ import os
 import re
 from datetime import datetime, timezone, timedelta
 from dotenv import load_dotenv
+from modules.config import get_secret
 
 load_dotenv()
 
@@ -43,9 +44,9 @@ def extract_video_id(url: str) -> str:
 def fetch_youtube_data(url: str) -> tuple:
     from googleapiclient.discovery import build
 
-    yt_key = os.getenv("YOUTUBE_API_KEY")
+    yt_key = get_secret("YOUTUBE_API_KEY")
     if not yt_key:
-        raise ValueError("YOUTUBE_API_KEY .env dosyasında bulunamadı.")
+        raise ValueError("YOUTUBE_API_KEY bulunamadı. .env veya Streamlit secrets'ı kontrol edin.")
 
     video_id = extract_video_id(url)
     youtube = build("youtube", "v3", developerKey=yt_key, cache_discovery=False)

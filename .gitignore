@@ -23,3 +23,6 @@ Reports/
 .vscode/
 .idea/
 logs/bot.log
+
+# Streamlit secrets — asla commit'leme
+.streamlit/secrets.toml
