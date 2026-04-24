@@ -68,20 +68,6 @@ def check_artist(artist_name: str, youtube_url: str, last_check: str | None) -> 
         signals = process_signals(artist_name, result["scores"], prev_scores)
         if signals:
             log.info(f"  → {len(signals)} kritik sinyal tetiklendi!")
-        else:
-            # Alarm koşulu olmasa bile rutin güncelleme bildirimi gönder
-            s = result["scores"]
-            display = artist_name.replace("_", " ")
-            from modules.alerts import send_telegram
-            send_telegram(
-                f"🔄 <b>Rapor Güncellendi</b>\n\n"
-                f"👤 {display}\n"
-                f"🎯 Londra: <b>{s['Londra Uyumluluğu']}/10</b>  "
-                f"⚡ Karizma: {s['Karizma']}  "
-                f"🌀 Gizem: {s['Gizem']}  "
-                f"🎤 Sahne: {s['Sahne Enerjisi']}\n"
-                f"<i>Hunter Bot tarafından güncellendi.</i>"
-            )
 
         log.info(f"  → Rapor güncellendi: {artist_name}")
         return True
