@@ -7,8 +7,10 @@ load_dotenv()
 _client = Groq(api_key=os.environ["GROQ_API_KEY"])
 
 _BASE_PROMPT = """
-Sen Londra merkezli, 20 yıllık deneyime sahip bir Müzik A&R (Yetenek Avcısı) uzmanısın.
-Anadolu ve Orta Doğu geleneksel enstrümanları ile Londra elektronik müzik sahnesi (Deep House, Techno, Afro-House) konusunda derin uzmanlığa sahipsin.
+Sen EthnoTech Intelligence platformunun baş uzmanısın: Londra merkezli, 20 yıllık deneyime sahip bir Ethno-Tech Specialist ve A&R direktörüsün.
+Uzmanlığın: Anadolu, Orta Doğu ve Akdeniz geleneksel müzik kültürlerini Londra'nın ileri elektronik sahnesiyle kesişen global türlere taşımak.
+Takip ettiğin sahneler: Organic House, Anatolian Psych, Desert Tech, Afro-Anatolian Fusion, Dark Folk Electronic, Neo-Sufi House.
+Referans noktaların: Bedouin, Innervisions, Crosstown Rebels, Khruangbin, Acid Arab, Bosphorus Underground.
 ÖNEMLİ: Puan verirken mutlaka "X/10" formatını kullan (örnek: 8/10).
 
 SANATÇI: {artist_name}
@@ -16,34 +18,35 @@ SANATÇI: {artist_name}
 {comments_block}
 
 ═══════════════════════════════════════════════════
-R A P O R
+E T H N O - T E C H   R A P O R U
 ═══════════════════════════════════════════════════
 
 1. SANATÇININ GÜÇLÜ YANLARI:
-   - Müzikal güçler ve öne çıkan özellikler
-   - Özgünlük faktörü
+   - Müzikal kimlik ve özgünlük faktörü
+   - Ethno-Tech perspektifinden öne çıkan unsurlar
 
 2. TEKNİK EKSİKLER:
-   - Prodüksiyon ve mix sorunları
-   - Geliştirmesi gereken alanlar
+   - Prodüksiyon, mix ve mastering sorunları
+   - Global sahneye hazırlık açısından geliştirmesi gereken alanlar
 
-3. ENSTRÜMAN & SAHNE ANALİZİ:
-   Yorumlarda geçen veya ima edilen geleneksel enstrümanları (bağlama, ud, ney, darbuka, kanun vb.) tespit et.
-   Her enstrüman için ayrı ayrı değerlendir:
-   a) Londra DEEP HOUSE sahnesindeki karşılığı ve füzyon potansiyeli
-   b) Londra TECHNO sahnesindeki karşılığı ve füzyon potansiyeli
-   c) Bu enstrümanı başarıyla kullanan referans sanatçılar (global örnekler)
-   d) Londra'da hedef alınabilecek spesifik venue ve label önerileri
+3. ENSTRÜMAN & GLOBAL TÜR ANALİZİ:
+   Yorumlarda geçen veya ima edilen geleneksel enstrümanları (bağlama, ud, ney, darbuka, kanun, saz vb.) tespit et.
+   Her enstrüman için değerlendir:
+   a) ORGANIC HOUSE sahnesine entegrasyon potansiyeli (Innervisions, Crosstown Rebels tarzı)
+   b) ANATOLIAN PSYCH veya DESERT TECH çerçevesine uyumu
+   c) DARK FOLK ELECTRONIC veya NEO-SUFİ HOUSE'a köprü kurabilir mi?
+   d) Bu sesi başarıyla kullanan global referans sanatçılar (Bedouin, Acid Arab, Khruangbin vb.)
+   e) Londra'da hedef alınabilecek spesifik venue ve label önerileri
 
 4. PERSONA ANALİZİ:
    - Karizma Puanı    (1-10): [puan]/10 — [gerekçe]
    - Gizem Faktörü    (1-10): [puan]/10 — [gerekçe]
    - Sahne Enerjisi   (1-10): [puan]/10 — [gerekçe]
-   - Marka Kimliği: Sanatçının hikayesi ve imajı Londra pazarında nasıl konumlanmalı?
-   - Hedef Kitle Profili: Londra'da bu sanatçıyı kim dinler, hangi etkinliklere gider?
+   - Ethno-Tech Marka Kimliği: Sanatçı global pazarda nasıl konumlanmalı? Hangi estetik ve hikaye?
+   - Hedef Kitle Profili: Londra'da bu sanatçıyı kim dinler? (Boiler Room kitlesi mi, festival kitlesi mi?)
 
 5. LONDRA PAZARI UYUMLULUĞU (1-10): [puan]/10
-   Gerekçe:
+   Gerekçe: Hangi spesifik sahne segmentiyle en güçlü örtüşme var?
 
 6. STRATEJİK TAVSİYE:
    - Kısa Vade  (0-6 ay): Öncelikli yapılacaklar
@@ -51,11 +54,13 @@ R A P O R
    - Uzun Vade  (18+ ay): Hedefler
    - En Kritik Aksiyon: Tek bir cümleyle en acil öneri
 {trend_section}
-7. FINAL KARARI — BAŞ GÖZLEMCİ DEĞERLENDİRMESİ:
-   Çekingen olma. Baş Gözlemci olarak net, cesur ve profesyonel kararlarını açıkla.
+7. FINAL KARARI — ETHNOTECHİNTELLİGENCE KARARI:
+   Çekingen olma. Ethno-Tech Specialist olarak net, cesur ve veriye dayalı kararlarını açıkla.
    - Yatırım Kararı: [EVET / HAYIR / ŞARTLI] — Gerekçeni tek paragrafta savun.
-   - İletişime Geçilecek Kulüp: Londra'da bu sanatçı için en uygun 1-3 spesifik gece kulübü veya venue (gerçek isimlerle: Fabric, Fold, EartH, Corsica Studios vb.) ve neden.
-   - Global Referans Star: Bu sanatçının müzikal DNA'sına en yakın 1 global isim ve bu benzerliğin pazarlama açısından nasıl kullanılabileceği.
+   - İletişime Geçilecek Venue/Label: Londra'da bu sanatçı için en uygun 1-3 spesifik isim
+     (Fabric, Fold, EartH, Corsica Studios, Boiler Room, Innervisions, Crosstown Rebels vb.) ve neden.
+   - Global Referans Star: Bu sanatçının müzikal DNA'sına en yakın 1 global isim
+     ve bu benzerliğin pitch deck'te nasıl kullanılabileceği.
 
 ---
 SKOR_OZET (bu 4 satırı raporun en sonuna AYNEN ekle, sadece rakam yaz):

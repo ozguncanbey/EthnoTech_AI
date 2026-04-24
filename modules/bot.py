@@ -17,7 +17,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 from modules.alerts import process_signals
 from modules.database import get_latest_scores, get_watchlist, update_watchlist_check
 from modules.report import process_and_save
-from modules.youtube_client import fetch_youtube_data, split_by_date
+from modules.youtube_client import _parse_yt_date, fetch_youtube_data, split_by_date
 
 # ── Log sistemi ───────────────────────────────────────────────
 LOG_DIR = Path("logs")
@@ -44,14 +44,12 @@ def check_artist(artist_name: str, youtube_url: str, last_check: str | None) -> 
         _, comments_list, _ = fetch_youtube_data(youtube_url)
 
         if last_check:
-            cutoff = datetime.fromisoformat(last_check)
-            if cutoff.tzinfo is None:
-                cutoff = cutoff.replace(tzinfo=timezone.utc)
+            cutoff = _parse_yt_date(last_check) or datetime.now(timezone.utc)
 
             new = [
                 c for c in comments_list
-                if c.get("date") and
-                datetime.fromisoformat(c["date"].replace("Z", "+00:00")) > cutoff
+                if _parse_yt_date(c.get("date", "")) is not None
+                and _parse_yt_date(c["date"]) > cutoff
             ]
             if not new:
                 log.info(f"  → Yeni yorum yok, atlandı.")

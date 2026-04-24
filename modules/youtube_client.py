@@ -84,15 +84,25 @@ def fetch_youtube_data(url: str) -> tuple:
     return safe_name, comments[:100], title
 
 
+def _parse_yt_date(date_str: str) -> datetime | None:
+    """YouTube tarih string'ini tz-aware datetime'a güvenli şekilde çevirir."""
+    if not date_str:
+        return None
+    try:
+        dt = datetime.fromisoformat(date_str.replace("Z", "+00:00"))
+        if dt.tzinfo is None:
+            dt = dt.replace(tzinfo=timezone.utc)
+        return dt
+    except (ValueError, TypeError):
+        return None
+
+
 def split_by_date(comments: list) -> tuple:
     cutoff = datetime.now(timezone.utc) - timedelta(days=90)
     recent, older = [], []
     for c in comments:
-        try:
-            dt = datetime.fromisoformat(c["date"].replace("Z", "+00:00"))
-            bucket = recent if dt >= cutoff else older
-        except (ValueError, KeyError):
-            bucket = older
+        dt = _parse_yt_date(c.get("date", ""))
+        bucket = recent if (dt is not None and dt >= cutoff) else older
         bucket.append(f"- {c['text']}")
 
     return "\n".join(recent), "\n".join(older)
