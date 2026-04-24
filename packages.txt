@@ -1,2 +1,0 @@
-# Streamlit Community Cloud — sistem paketi gereksinimleri
-# SQLite3 Python ile birlikte gelir, ek sistem paketi gerekmez.
