@@ -6,6 +6,30 @@ from dotenv import load_dotenv
 load_dotenv()
 
 
+def _extract_artist(title: str, channel: str) -> str:
+    """
+    Video başlığından sanatçı adını çıkarır.
+    Öncelik: başlıktaki 'Sanatçı - Şarkı' kalıbı → channel adı → başlığın tamamı.
+    """
+    # "Sanatçı - Şarkı", "Sanatçı | Şarkı", "Sanatçı: Şarkı" kalıpları
+    for sep in (" - ", " – ", " | ", ": "):
+        if sep in title:
+            candidate = title.split(sep)[0].strip()
+            # Makul uzunlukta ve şarkı/klip sözcükleri içermiyorsa kullan
+            noise = {"official", "video", "clip", "lyrics", "audio",
+                     "ft", "feat", "prod", "remix", "vevo", "presents"}
+            if 2 <= len(candidate) <= 50 and not any(
+                w.lower() in noise for w in candidate.split()
+            ):
+                return candidate
+
+    # Kanal adı varsa ve makul görünüyorsa kullan
+    if channel and len(channel) <= 50 and "VEVO" not in channel.upper():
+        return channel
+
+    return title  # fallback: başlığın tamamı
+
+
 def extract_video_id(url: str) -> str:
     m = re.search(r"(?:v=|/v/|youtu\.be/|/embed/)([a-zA-Z0-9_-]{11})", url)
     if not m:
@@ -29,8 +53,12 @@ def fetch_youtube_data(url: str) -> tuple:
     video_resp = youtube.videos().list(part="snippet", id=video_id).execute()
     if not video_resp.get("items"):
         raise ValueError("Video bulunamadı veya erişilemiyor.")
-    title = video_resp["items"][0]["snippet"]["title"]
-    safe_name = re.sub(r"[^\w\s-]", "", title).strip().replace(" ", "_")[:60]
+    snippet = video_resp["items"][0]["snippet"]
+    title = snippet["title"]
+    channel = snippet.get("channelTitle", "")
+
+    artist_name = _extract_artist(title, channel)
+    safe_name = re.sub(r"[^\w\s-]", "", artist_name).strip().replace(" ", "_")[:60]
 
     comments = []
     req = youtube.commentThreads().list(
