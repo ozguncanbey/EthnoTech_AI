@@ -57,6 +57,13 @@ def _init_db() -> None:
                 full_report_text   TEXT,
                 report_path        TEXT
             );
+            CREATE TABLE IF NOT EXISTS watchlist (
+                id                INTEGER PRIMARY KEY AUTOINCREMENT,
+                artist_name       TEXT NOT NULL,
+                youtube_url       TEXT UNIQUE NOT NULL,
+                added_date        TEXT,
+                last_check_date   TEXT
+            );
         """)
 
 
@@ -174,6 +181,44 @@ def load_all() -> list:
         }
         for row in rows
     ]
+
+
+# ── Watchlist ─────────────────────────────────────────────────
+def add_to_watchlist(artist_name: str, youtube_url: str) -> None:
+    with _conn() as con:
+        con.execute(
+            """
+            INSERT INTO watchlist (artist_name, youtube_url, added_date)
+            VALUES (?, ?, ?)
+            ON CONFLICT(youtube_url) DO UPDATE SET artist_name = excluded.artist_name
+            """,
+            (artist_name, youtube_url, datetime.now().isoformat(timespec="seconds")),
+        )
+
+
+def get_watchlist() -> list:
+    with _conn() as con:
+        rows = con.execute(
+            """
+            SELECT artist_name, youtube_url, added_date, last_check_date
+            FROM   watchlist
+            ORDER  BY added_date DESC
+            """
+        ).fetchall()
+    return [dict(row) for row in rows]
+
+
+def update_watchlist_check(youtube_url: str, check_date: str) -> None:
+    with _conn() as con:
+        con.execute(
+            "UPDATE watchlist SET last_check_date = ? WHERE youtube_url = ?",
+            (check_date, youtube_url),
+        )
+
+
+def remove_from_watchlist(youtube_url: str) -> None:
+    with _conn() as con:
+        con.execute("DELETE FROM watchlist WHERE youtube_url = ?", (youtube_url,))
 
 
 def load_report_text(artist_name: str) -> str | None:

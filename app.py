@@ -2,9 +2,11 @@ import streamlit as st
 import streamlit.components.v1 as components
 import pandas as pd
 
+from modules.bot import run_bot
 from modules.chart import generate_radar_chart
 from modules.config import REPORTS_DIR
-from modules.database import load_all, save_analysis
+from modules.database import (add_to_watchlist, get_watchlist, load_all,
+                               remove_from_watchlist, save_analysis)
 from modules.groq_client import analyze_artist, analyze_with_trend, extract_scores
 from modules.report import build_artist_html, build_summary_html
 from modules.youtube_client import fetch_youtube_data, split_by_date
@@ -36,7 +38,8 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # ── Session State ──────────────────────────────────────────────
-for key, default in [("report_html", None), ("current_artist", None)]:
+for key, default in [("report_html", None), ("current_artist", None),
+                     ("last_yt_url", None), ("last_yt_artist", None)]:
     if key not in st.session_state:
         st.session_state[key] = default
 
@@ -125,6 +128,8 @@ with st.sidebar:
                     )
 
                     _run_analysis(artist_name, raw_comments, recent_str, older_str)
+                    st.session_state.last_yt_url = url
+                    st.session_state.last_yt_artist = artist_name
                     st.rerun()
 
                 except Exception as e:
@@ -151,6 +156,18 @@ with st.sidebar:
                 except Exception as e:
                     st.error(f"Hata: {e}")
 
+    # ── Takip listesine ekle ──
+    if st.session_state.last_yt_url:
+        st.divider()
+        artist_disp = (st.session_state.last_yt_artist or "").replace("_", " ")
+        st.caption(f"Son analiz: **{artist_disp}**")
+        if st.button("📌 Takip Listesine Ekle", key="watchlist_add"):
+            add_to_watchlist(
+                st.session_state.last_yt_artist,
+                st.session_state.last_yt_url,
+            )
+            st.success(f"{artist_disp} takip listesine eklendi!")
+
     # ── Kayıtlı sanatçılar listesi ──
     st.divider()
     records = load_all()
@@ -171,7 +188,9 @@ with st.sidebar:
 
 
 # ── ANA ALAN ───────────────────────────────────────────────────
-tab_report, tab_compare = st.tabs(["📄 Sanatçı Raporu", "📊 Kıyaslama Tablosu"])
+tab_report, tab_compare, tab_watch = st.tabs(
+    ["📄 Sanatçı Raporu", "📊 Kıyaslama Tablosu", "🎯 Hunter Bot"]
+)
 
 # Rapor sekmesi
 with tab_report:
@@ -255,3 +274,61 @@ with tab_compare:
             f"🏆 En uygun aday: **{best['artist'].replace('_', ' ')}**"
             f"  —  Londra Uyumluluğu: {best['scores']['Londra Uyumluluğu']}/10"
         )
+
+# Hunter Bot sekmesi
+with tab_watch:
+    st.subheader("🎯 Hunter Bot — Otomatik Takip")
+    st.caption("Takip listesindeki sanatçılar yeni yorum aldığında raporu otomatik günceller.")
+
+    col_run, col_info = st.columns([1, 3])
+    with col_run:
+        if st.button("▶ Bot'u Şimdi Çalıştır", type="primary"):
+            with st.spinner("Hunter Bot çalışıyor..."):
+                result = run_bot()
+            st.success(
+                f"Tamamlandı — {result['updated']}/{result['total']} sanatçı güncellendi."
+            )
+    with col_info:
+        st.info(
+            "Terminal'den sürekli çalıştırmak için:\n\n"
+            "`python3 modules/bot.py --hours 24`\n\n"
+            "Tek seferlik: `python3 modules/bot.py --once`"
+        )
+
+    st.divider()
+
+    watchlist = get_watchlist()
+    if not watchlist:
+        st.markdown("""
+        <div style="text-align:center;padding:60px;color:#555;">
+          <div style="font-size:36px">📌</div>
+          <p style="margin-top:12px">Takip listesi boş.<br>
+          Sol panelden bir YouTube analizi yapıp <b>Takip Listesine Ekle</b>'ye tıklayın.</p>
+        </div>
+        """, unsafe_allow_html=True)
+    else:
+        st.markdown(f"**{len(watchlist)} sanatçı takip ediliyor**")
+        for entry in watchlist:
+            with st.container(border=True):
+                c1, c2, c3 = st.columns([3, 2, 1])
+                with c1:
+                    st.markdown(f"**{entry['artist_name'].replace('_', ' ')}**")
+                    st.caption(entry["youtube_url"])
+                with c2:
+                    last = entry["last_check_date"]
+                    checked = last[:16].replace("T", " ") if last else "Henüz kontrol edilmedi"
+                    added = entry["added_date"][:10] if entry["added_date"] else ""
+                    st.caption(f"Son kontrol: {checked}")
+                    st.caption(f"Eklenme: {added}")
+                with c3:
+                    if st.button("🗑 Çıkar", key=f"rm_{entry['youtube_url']}"):
+                        remove_from_watchlist(entry["youtube_url"])
+                        st.rerun()
+
+    # Log görüntüleyici
+    log_path = Path("logs/bot.log")
+    if log_path.exists():
+        st.divider()
+        with st.expander("📋 Bot Logları"):
+            lines = log_path.read_text(encoding="utf-8").splitlines()
+            st.code("\n".join(lines[-50:]), language=None)  # son 50 satır
