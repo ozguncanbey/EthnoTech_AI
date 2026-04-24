@@ -62,7 +62,13 @@ def _run_analysis(artist_name: str, raw_comments: str,
         REPORTS_DIR.mkdir(exist_ok=True)
         out = REPORTS_DIR / f"{artist_name}_rapor.html"
         out.write_text(html, encoding="utf-8")
-        save_analysis(artist_name, scores)
+        save_analysis(
+            artist_name=artist_name,
+            scores=scores,
+            trend_label=trend_label,
+            report_text=report_text,
+            report_path=str(out),
+        )
         (REPORTS_DIR / "_ozet_rapor.html").write_text(build_summary_html(), encoding="utf-8")
 
         st.session_state.report_html = html

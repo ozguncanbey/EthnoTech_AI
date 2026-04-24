@@ -156,7 +156,13 @@ def process_and_save(
     out.write_text(html, encoding="utf-8")
     print(f"  Kaydedildi → {out}")
 
-    save_analysis(artist_name, scores)
+    save_analysis(
+        artist_name=artist_name,
+        scores=scores,
+        trend_label=trend_label,
+        report_text=report_text,
+        report_path=str(out),
+    )
 
     summary_path = REPORTS_DIR / "_ozet_rapor.html"
     summary_path.write_text(build_summary_html(), encoding="utf-8")
