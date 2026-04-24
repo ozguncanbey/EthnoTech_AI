@@ -14,7 +14,8 @@ from pathlib import Path
 # Kök dizini Python yoluna ekle (modules/ içinden çalıştırıldığında)
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from modules.database import get_watchlist, update_watchlist_check
+from modules.alerts import process_signals
+from modules.database import get_latest_scores, get_watchlist, update_watchlist_check
 from modules.report import process_and_save
 from modules.youtube_client import fetch_youtube_data, split_by_date
 
@@ -39,6 +40,7 @@ def check_artist(artist_name: str, youtube_url: str, last_check: str | None) -> 
     """Sanatçıyı kontrol et, yeni yorum varsa analizi güncelle. True → güncellendi."""
     log.info(f"Kontrol: {artist_name}")
     try:
+        prev_scores = get_latest_scores(artist_name)
         _, comments_list, _ = fetch_youtube_data(youtube_url)
 
         if last_check:
@@ -60,8 +62,13 @@ def check_artist(artist_name: str, youtube_url: str, last_check: str | None) -> 
 
         recent_str, older_str = split_by_date(comments_list)
         raw_comments = "\n".join(f"- {c['text']}" for c in comments_list)
-        process_and_save(artist_name, raw_comments, recent_str, older_str)
+        result = process_and_save(artist_name, raw_comments, recent_str, older_str)
         update_watchlist_check(youtube_url, datetime.now(timezone.utc).isoformat(timespec="seconds"))
+
+        signals = process_signals(artist_name, result["scores"], prev_scores)
+        if signals:
+            log.info(f"  → {len(signals)} kritik sinyal tetiklendi!")
+
         log.info(f"  → Rapor güncellendi: {artist_name}")
         return True
 

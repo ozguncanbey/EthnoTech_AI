@@ -64,6 +64,25 @@ def _init_db() -> None:
                 added_date        TEXT,
                 last_check_date   TEXT
             );
+            CREATE TABLE IF NOT EXISTS score_history (
+                id                INTEGER PRIMARY KEY AUTOINCREMENT,
+                artist_id         INTEGER NOT NULL
+                                  REFERENCES artists(id) ON DELETE CASCADE,
+                analysis_date     TEXT NOT NULL,
+                karizma           INTEGER DEFAULT 7,
+                gizem             INTEGER DEFAULT 7,
+                sahne_enerjisi    INTEGER DEFAULT 7,
+                londra_uyumlulugu INTEGER DEFAULT 7,
+                trend_label       TEXT
+            );
+            CREATE TABLE IF NOT EXISTS alerts (
+                id          INTEGER PRIMARY KEY AUTOINCREMENT,
+                artist_name TEXT NOT NULL,
+                signal_type TEXT NOT NULL,
+                message     TEXT,
+                created_at  TEXT,
+                notified    INTEGER DEFAULT 0
+            );
         """)
 
 
@@ -131,6 +150,24 @@ def save_analysis(
             """,
             (
                 artist_id,
+                scores.get("Karizma", 7),
+                scores.get("Gizem", 7),
+                scores.get("Sahne Enerjisi", 7),
+                scores.get("Londra Uyumluluğu", 7),
+                trend_label,
+            ),
+        )
+
+        # score_history — her analizde birikim (silinmez)
+        con.execute(
+            """
+            INSERT INTO score_history
+                (artist_id, analysis_date, karizma, gizem, sahne_enerjisi,
+                 londra_uyumlulugu, trend_label)
+            VALUES (?, ?, ?, ?, ?, ?, ?)
+            """,
+            (
+                artist_id, now,
                 scores.get("Karizma", 7),
                 scores.get("Gizem", 7),
                 scores.get("Sahne Enerjisi", 7),
@@ -219,6 +256,65 @@ def update_watchlist_check(youtube_url: str, check_date: str) -> None:
 def remove_from_watchlist(youtube_url: str) -> None:
     with _conn() as con:
         con.execute("DELETE FROM watchlist WHERE youtube_url = ?", (youtube_url,))
+
+
+def get_latest_scores(artist_name: str) -> dict | None:
+    """Sanatçının en güncel puanlarını döner (yoksa None)."""
+    with _conn() as con:
+        row = con.execute(
+            """
+            SELECT s.karizma, s.gizem, s.sahne_enerjisi, s.londra_uyumlulugu
+            FROM   scores s
+            JOIN   artists a ON a.id = s.artist_id
+            WHERE  a.name = ?
+            """,
+            (artist_name,),
+        ).fetchone()
+    if not row:
+        return None
+    return {
+        "Karizma":           row["karizma"],
+        "Gizem":             row["gizem"],
+        "Sahne Enerjisi":    row["sahne_enerjisi"],
+        "Londra Uyumluluğu": row["londra_uyumlulugu"],
+    }
+
+
+def get_score_history(artist_name: str) -> list:
+    """Sanatçının tüm tarihli puan geçmişini döner."""
+    with _conn() as con:
+        rows = con.execute(
+            """
+            SELECT  h.analysis_date, h.karizma, h.gizem,
+                    h.sahne_enerjisi, h.londra_uyumlulugu, h.trend_label
+            FROM    score_history h
+            JOIN    artists a ON a.id = h.artist_id
+            WHERE   a.name = ?
+            ORDER   BY h.analysis_date ASC
+            """,
+            (artist_name,),
+        ).fetchall()
+    return [dict(row) for row in rows]
+
+
+def save_alert(artist_name: str, signal_type: str, message: str) -> None:
+    with _conn() as con:
+        con.execute(
+            """
+            INSERT INTO alerts (artist_name, signal_type, message, created_at)
+            VALUES (?, ?, ?, ?)
+            """,
+            (artist_name, signal_type, message, datetime.now().isoformat(timespec="seconds")),
+        )
+
+
+def get_alerts(limit: int = 20) -> list:
+    with _conn() as con:
+        rows = con.execute(
+            "SELECT * FROM alerts ORDER BY created_at DESC LIMIT ?",
+            (limit,),
+        ).fetchall()
+    return [dict(row) for row in rows]
 
 
 def load_report_text(artist_name: str) -> str | None:

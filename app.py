@@ -2,10 +2,12 @@ import streamlit as st
 import streamlit.components.v1 as components
 import pandas as pd
 
+from modules.alerts import process_signals
 from modules.bot import run_bot
 from modules.chart import generate_radar_chart
 from modules.config import REPORTS_DIR
-from modules.database import (add_to_watchlist, get_watchlist, load_all,
+from modules.database import (add_to_watchlist, get_alerts, get_latest_scores,
+                               get_score_history, get_watchlist, load_all,
                                remove_from_watchlist, save_analysis)
 from modules.groq_client import analyze_artist, analyze_with_trend, extract_scores
 from modules.report import build_artist_html, build_summary_html
@@ -46,6 +48,8 @@ for key, default in [("report_html", None), ("current_artist", None),
 
 def _run_analysis(artist_name: str, raw_comments: str,
                   recent_str: str = None, older_str: str = None) -> dict:
+    prev_scores = get_latest_scores(artist_name)  # sinyal karşılaştırması için
+
     with st.status("Analiz başlatılıyor...", expanded=True) as status:
 
         if recent_str is not None and older_str is not None:
@@ -78,6 +82,10 @@ def _run_analysis(artist_name: str, raw_comments: str,
         st.session_state.current_artist = artist_name
 
         status.update(label="✅ Analiz tamamlandı!", state="complete", expanded=False)
+
+    signals = process_signals(artist_name, scores, prev_scores)
+    for sig in signals:
+        st.toast(sig["message"].replace("<b>", "**").replace("</b>", "**"), icon="🚨")
 
     return {"artist": artist_name, "scores": scores}
 
@@ -196,6 +204,21 @@ tab_report, tab_compare, tab_watch = st.tabs(
 with tab_report:
     if st.session_state.report_html:
         components.html(st.session_state.report_html, height=1500, scrolling=True)
+
+        # Puan geçmişi grafiği
+        artist = st.session_state.current_artist
+        if artist:
+            history = get_score_history(artist)
+            if len(history) >= 2:
+                st.markdown(f"#### 📈 {artist.replace('_', ' ')} — Puan Geçmişi")
+                df_hist = pd.DataFrame([{
+                    "Tarih":              h["analysis_date"][:10],
+                    "Karizma":            h["karizma"],
+                    "Gizem":              h["gizem"],
+                    "Sahne Enerjisi":     h["sahne_enerjisi"],
+                    "Londra Uyumluluğu":  h["londra_uyumlulugu"],
+                } for h in history]).set_index("Tarih")
+                st.line_chart(df_hist, height=250)
     else:
         st.markdown("""
         <div style="text-align:center;padding:100px 40px;color:#555;">
@@ -324,6 +347,19 @@ with tab_watch:
                     if st.button("🗑 Çıkar", key=f"rm_{entry['youtube_url']}"):
                         remove_from_watchlist(entry["youtube_url"])
                         st.rerun()
+
+    # Kritik sinyaller
+    alerts = get_alerts(limit=10)
+    if alerts:
+        st.divider()
+        st.markdown("**🚨 Son Kritik Sinyaller**")
+        for a in alerts:
+            icon = "🔴" if a["signal_type"] == "HIGH_SCORE" else "📈"
+            label = "Yüksek Skor" if a["signal_type"] == "HIGH_SCORE" else "Yükselen"
+            st.info(
+                f"{icon} **{a['artist_name'].replace('_', ' ')}** — {label}  \n"
+                f"{a['created_at'][:16].replace('T', ' ')}"
+            )
 
     # Log görüntüleyici
     log_path = Path("logs/bot.log")
