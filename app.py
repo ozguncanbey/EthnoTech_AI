@@ -411,14 +411,15 @@ def _artist_card(r: dict, rank: str, delay_base: float = 0.0) -> str:
         trend_html = ""
 
     def bar(label, val, css_class, delay):
-        pct = val * 10
+        pct     = float(val) * 10          # 9.3 → 93%
+        val_str = f"{float(val):.1f}"      # "9.3"
         return (
             f'<div class="metric-row">'
             f'<span class="metric-label">{label}</span>'
             f'<div class="metric-track">'
             f'<div class="metric-fill {css_class}" style="--w:{pct}%;animation-delay:{delay:.2f}s"></div>'
             f'</div>'
-            f'<span class="metric-val">{val}</span>'
+            f'<span class="metric-val">{val_str}</span>'
             f'</div>'
         )
 
@@ -429,16 +430,17 @@ def _artist_card(r: dict, rank: str, delay_base: float = 0.0) -> str:
         bar("Londra Uyumluluğu", s["Londra Uyumluluğu"],"mf-purple", delay_base + 0.36)
     )
 
-    london = s["Londra Uyumluluğu"]
-    if london >= 9:
+    london = float(s["Londra Uyumluluğu"])
+    if london >= 9.0:
         london_color = "#4ade80"
-        sign_badge = '<span class="sign-now-badge">⚡ SIGN NOW</span>'
-    elif london >= 7:
+        sign_label   = "⚡ SIGN NOW" if london < 9.5 else "🔥 SIGN NOW 9.5+"
+        sign_badge   = f'<span class="sign-now-badge">{sign_label}</span>'
+    elif london >= 7.0:
         london_color = "#facc15"
-        sign_badge = ""
+        sign_badge   = ""
     else:
         london_color = "#f87171"
-        sign_badge = ""
+        sign_badge   = ""
 
     return (
         f'<div class="artist-card">'
@@ -448,7 +450,7 @@ def _artist_card(r: dict, rank: str, delay_base: float = 0.0) -> str:
         f'{trend_html}'
         f'{sign_badge}'
         f'<span class="card-london" style="background:none;-webkit-text-fill-color:{london_color};color:{london_color}">'
-        f'{london}/10</span>'
+        f'{london:.1f}/10</span>'
         f'<span class="card-date">{date}</span>'
         f'</div>'
         f'{bars}'
@@ -593,7 +595,7 @@ with st.sidebar:
             disp  = r["artist"].replace("_", " ")
             score = r["scores"]["Londra Uyumluluğu"]
             st.markdown('<div class="sb-artist">', unsafe_allow_html=True)
-            if st.button(f"{disp}  ·  {score}/10", key=f"sb_{r['artist']}"):
+            if st.button(f"{disp}  ·  {float(score):.1f}/10", key=f"sb_{r['artist']}"):
                 _load_artist_report(r["artist"])
                 st.rerun()
             st.markdown("</div>", unsafe_allow_html=True)
@@ -692,7 +694,7 @@ with tab_radar:
         with c1:
             st.metric("Toplam Sanatçı", len(records))
         with c2:
-            st.metric("En Yüksek Puan", f"{best['scores']['Londra Uyumluluğu']}/10",
+            st.metric("En Yüksek Puan", f"{float(best['scores']['Londra Uyumluluğu']):.1f}/10",
                       best["artist"].replace("_", " "))
         with c3:
             st.metric("Ortalama Puan", f"{avg:.1f}/10")
@@ -715,7 +717,7 @@ with tab_radar:
             f'🏆 &nbsp; En Uygun Aday: <b style="color:#00ff87">'
             f'{best["artist"].replace("_"," ")}</b> &nbsp;·&nbsp; '
             f'Londra Uyumluluğu: <b style="color:#00ff87">'
-            f'{best["scores"]["Londra Uyumluluğu"]}/10</b></div>',
+            f'{float(best["scores"]["Londra Uyumluluğu"]):.1f}/10</b></div>',
             unsafe_allow_html=True
         )
 

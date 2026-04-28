@@ -2,8 +2,8 @@
 Alert (Alarm) Sistemi — Yatırım Sinyali + Telegram Bildirimi
 
 Sinyal koşulları:
-  HIGH_SCORE : londra_uyumlulugu >= SCORE_THRESHOLD (varsayılan 9)
-  RISING     : londra puanı önceki analize göre > RISE_THRESHOLD (varsayılan 1) arttı
+  HIGH_SCORE : londra_uyumlulugu >= SCORE_THRESHOLD (9.0)
+  RISING     : londra puanı önceki analize göre > RISE_THRESHOLD arttı
 """
 import logging
 
@@ -15,8 +15,13 @@ load_dotenv()
 
 log = logging.getLogger("HunterBot")
 
-SCORE_THRESHOLD = 9   # bu puan veya üzeri → HIGH_SCORE sinyali
-RISE_THRESHOLD  = 1   # bu miktardan fazla artış → RISING sinyali
+SCORE_THRESHOLD = 9.0   # bu puan veya üzeri → HIGH_SCORE sinyali
+RISE_THRESHOLD  = 1.0   # bu miktardan fazla artış → RISING sinyali
+
+
+def _fmt(v) -> str:
+    """Skoru tek ondalıklı string'e çevirir: 9 → '9.0', 9.3 → '9.3'"""
+    return f"{float(v):.1f}"
 
 
 # ── Sinyal tespiti ────────────────────────────────────────────
@@ -26,31 +31,32 @@ def check_signals(
     previous: dict | None,
 ) -> list[dict]:
     signals = []
-    london  = current.get("Londra Uyumluluğu", 0)
+    london  = float(current.get("Londra Uyumluluğu", 0))
     display = artist_name.replace("_", " ")
 
     if london >= SCORE_THRESHOLD:
         signals.append({
             "type":    "HIGH_SCORE",
             "message": (
-                f"🚨 <b>Yüksek Potansiyelli Sanatçı Bulundu!</b>\n"
-                f"👤 {display}\n"
-                f"🎯 Londra Uyumluluğu: <b>{london}/10</b>\n"
-                f"💡 Yatırım Sinyali: GÜÇLÜ"
-            ),
+                f"🚨 <b>{display} — {_fmt(london)}/10</b>\n"
+                f"━━━━━━━━━━━━━━━━━━━━\n"
+                f"🎯 Londra Uyumluluğu: <b>{_fmt(london)}/10</b>\n"
+                f"💡 Yatırım Sinyali: {'EKSTREM POTANSIYEL' if london >= 9.5 else 'GÜÇLÜ'}\n"
+                f"{'⚡ 9.5+ — Boiler Room / Global iş birliği adayı' if london >= 9.5 else ''}"
+            ).strip(),
         })
 
     if previous:
-        prev_london = previous.get("Londra Uyumluluğu", 0)
+        prev_london = float(previous.get("Londra Uyumluluğu", 0))
         rise = london - prev_london
         if rise > RISE_THRESHOLD:
             signals.append({
                 "type":    "RISING",
                 "message": (
-                    f"📈 <b>Yükselen Sinyal!</b>\n"
-                    f"👤 {display}\n"
-                    f"🎯 Londra Puanı: {prev_london}/10 → <b>{london}/10</b> "
-                    f"(<b>{rise:+d} puan</b>)"
+                    f"📈 <b>{display} — Yükselen Sinyal</b>\n"
+                    f"━━━━━━━━━━━━━━━━━━━━\n"
+                    f"🎯 Londra: {_fmt(prev_london)}/10 → <b>{_fmt(london)}/10</b> "
+                    f"(<b>+{rise:.1f} puan</b>)"
                 ),
             })
 
@@ -77,9 +83,11 @@ def send_telegram(message: str) -> None:
             if resp.ok:
                 log.info(f"  Telegram → chat_id {chat_id} ✓")
             else:
-                log.warning(f"  Telegram hatası: {resp.text[:200]}")
+                log.warning(f"  Telegram hatası [{resp.status_code}]: {resp.text[:200]}")
         except requests.RequestException as e:
             log.error(f"  Telegram bağlantı hatası: {e}")
+        except Exception as e:
+            log.error(f"  Telegram beklenmedik hata: {e}")
 
 
 # ── Ana akış (bot ve app tarafından çağrılır) ─────────────────

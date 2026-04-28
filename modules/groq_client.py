@@ -26,15 +26,20 @@ Referans noktaların: Bedouin, Innervisions, Crosstown Rebels, Khruangbin, Acid 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 PUANLAMA KILAVUZU — PUAN VERMEDEN ÖNCE OKU
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-1–5 : Yetersiz — global piyasaya hazır değil
-6   : Zayıf — ciddi geliştirme gerektirir
-7   : Vasat — Londra dikkatini çekmez
-8   : ORTALAMA — "iyi" değil, sıradan demektir; bu puan yatırım kararı getirmez
-9   : Güçlü aday — hemen iletişime geç (SIGN NOW statüsü)
-10  : Tarihî fırsat — bir nesilde bir kez; tereddütsüz imzala
+ZORUNLU: Puan verirken ONDALIKLI yaz (0.1 hassasiyet).
+Örnek: 9.2, 8.7, 9.4 — Tam sayı (9, 8) verme.
+Sanatçıları birbirleriyle yarıştırıyormuşsun gibi düşün; 9.3 ile 9.7 arasındaki fark önemlidir.
 
-⚠ KURAL: 8 = vasat. Sanatçıyı beğeniyorsan puan 9 veya 10 olmalı.
-Gerçekten güçlü bir profil görüyorsan 9-10 vermekten çekimser olma.
+1.0–5.9 : Yetersiz — global piyasaya hazır değil
+6.0–6.9 : Zayıf — ciddi geliştirme gerektirir
+7.0–7.9 : Vasat — Londra dikkatini çekmez
+8.0–8.9 : ORTALAMA — "iyi" değil, sıradan; yatırım kararı getirmez
+9.0     : Baz güçlü aday — hemen iletişime geç (SIGN NOW)
+9.5–9.9 : Ekstrem potansiyel — Boiler Room performansı, global iş birlikleri, kritik eşik
+10.0    : Tarihî fırsat — bir nesilde bir kez; tereddütsüz imzala
+
+⚠ KURAL: 8.x = vasat. Sanatçıyı beğeniyorsan puan 9.0+ olmalı.
+9.0 bir tavan değil, bir başlangıç noktasıdır — gerçek potansiyeli 9.3, 9.6 ile ifade et.
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 SİNYAL ALGILAMA — Puanlamadan Önce Uygula
@@ -50,7 +55,7 @@ YORUM SAYISI NOTU: Az yorum ≠ kötü sanatçı.
 10 derin, spesifik yorum; 500 jenerik "harika müzik" yorumundan daha değerlidir.
 Yorum miktarını asla puan cezası olarak kullanma — kaliteye bak.
 
-ÖNEMLİ: Puan verirken mutlaka "X/10" formatını kullan (örnek: 9/10).
+ÖNEMLİ: Puan verirken mutlaka "X.X/10" ondalıklı formatını kullan (örnek: 9.3/10, 8.7/10).
 
 SANATÇI: {artist_name}
 
@@ -82,15 +87,15 @@ E T H N O - T E C H   R A P O R U
    e) Londra'da hedef alınabilecek spesifik venue ve label önerileri
 
 4. PERSONA ANALİZİ:
-   - Karizma Puanı    (1-10): [puan]/10 — [gerekçe; 8=ortalama, 9-10=imzalanabilir]
-   - Gizem Faktörü    (1-10): [puan]/10 — [gerekçe]
-   - Sahne Enerjisi   (1-10): [puan]/10 — [gerekçe]
+   - Karizma Puanı    (1.0-10.0): [X.X]/10 — [gerekçe; 8.x=ortalama, 9.0+=imzalanabilir]
+   - Gizem Faktörü    (1.0-10.0): [X.X]/10 — [gerekçe]
+   - Sahne Enerjisi   (1.0-10.0): [X.X]/10 — [gerekçe]
    - Ethno-Tech Marka Kimliği: Sanatçı global pazarda nasıl konumlanmalı? Hangi estetik ve hikaye?
    - Hedef Kitle Profili: Londra'da bu sanatçıyı kim dinler? (Boiler Room kitlesi mi, festival kitlesi mi?)
 
-5. LONDRA PAZARI UYUMLULUĞU (1-10): [puan]/10
+5. LONDRA PAZARI UYUMLULUĞU (1.0-10.0): [X.X]/10
    Gerekçe: Hangi spesifik sahne segmentiyle en güçlü örtüşme var?
-   Hatırlatma: 8 = ortalama Londra adayı; 9 = SIGN NOW; 10 = tarihî fırsat
+   Hatırlatma: 8.x = ortalama; 9.0 = SIGN NOW tabanı; 9.5+ = ekstrem potansiyel; 10 = tarihî fırsat
 
 6. STRATEJİK TAVSİYE:
    - Kısa Vade  (0-6 ay): Öncelikli yapılacaklar
@@ -107,11 +112,11 @@ E T H N O - T E C H   R A P O R U
      ve bu benzerliğin pitch deck'te nasıl kullanılabileceği.
 
 ---
-SKOR_OZET (bu 4 satırı raporun en sonuna AYNEN ekle, sadece rakam yaz):
-SKOR_KARIZMA: [1-10]
-SKOR_GIZEM: [1-10]
-SKOR_SAHNE: [1-10]
-SKOR_LONDRA: [1-10]"""
+SKOR_OZET (bu 4 satırı raporun en sonuna AYNEN ekle, ondalıklı rakam yaz):
+SKOR_KARIZMA: [X.X]
+SKOR_GIZEM: [X.X]
+SKOR_SAHNE: [X.X]
+SKOR_LONDRA: [X.X]"""
 
 _TREND_SECTION = """
 7. TREND ANALİZİ:
@@ -172,34 +177,37 @@ def _extract_trend(text: str) -> str:
 
 
 def extract_scores(report_text: str) -> dict:
-    scores = {"Karizma": 7, "Gizem": 7, "Sahne Enerjisi": 7, "Londra Uyumluluğu": 7}
+    scores = {"Karizma": 7.0, "Gizem": 7.0, "Sahne Enerjisi": 7.0, "Londra Uyumluluğu": 7.0}
 
-    # Katman 1: yapılandırılmış SKOR_ satırları (en güvenilir)
+    def _clamp(v: str) -> float:
+        return round(max(1.0, min(10.0, float(v))), 1)
+
+    # Katman 1: yapılandırılmış SKOR_ satırları (en güvenilir) — ondalık destekli
     structured = {
-        "Karizma":          r"SKOR_KARIZMA\s*:\s*(\d+)",
-        "Gizem":            r"SKOR_GIZEM\s*:\s*(\d+)",
-        "Sahne Enerjisi":   r"SKOR_SAHNE\s*:\s*(\d+)",
-        "Londra Uyumluluğu":r"SKOR_LONDRA\s*:\s*(\d+)",
+        "Karizma":           r"SKOR_KARIZMA\s*:\s*(\d+\.?\d*)",
+        "Gizem":             r"SKOR_GIZEM\s*:\s*(\d+\.?\d*)",
+        "Sahne Enerjisi":    r"SKOR_SAHNE\s*:\s*(\d+\.?\d*)",
+        "Londra Uyumluluğu": r"SKOR_LONDRA\s*:\s*(\d+\.?\d*)",
     }
     found = 0
     for key, pat in structured.items():
         m = re.search(pat, report_text, re.IGNORECASE)
         if m:
-            scores[key] = max(1, min(10, int(m.group(1))))
+            scores[key] = _clamp(m.group(1))
             found += 1
     if found == 4:
         return scores
 
-    # Katman 2: esnek regex — bold (**8**), parantez ((8/10)), boşluk (8 / 10)
+    # Katman 2: esnek regex — bold, parantez, boşluk varyasyonları + ondalık
     flexible = {
-        "Karizma":           r"Karizma[^0-9]{0,40}\*{0,2}(\d+)\*{0,2}\s*/\s*10",
-        "Gizem":             r"Gizem[^0-9]{0,40}\*{0,2}(\d+)\*{0,2}\s*/\s*10",
-        "Sahne Enerjisi":    r"Sahne\s*Enerjisi[^0-9]{0,40}\*{0,2}(\d+)\*{0,2}\s*/\s*10",
-        "Londra Uyumluluğu": r"LONDRA[^0-9]{0,60}\*{0,2}(\d+)\*{0,2}\s*/\s*10",
+        "Karizma":           r"Karizma[^0-9]{0,40}\*{0,2}(\d+\.?\d*)\*{0,2}\s*/\s*10",
+        "Gizem":             r"Gizem[^0-9]{0,40}\*{0,2}(\d+\.?\d*)\*{0,2}\s*/\s*10",
+        "Sahne Enerjisi":    r"Sahne\s*Enerjisi[^0-9]{0,40}\*{0,2}(\d+\.?\d*)\*{0,2}\s*/\s*10",
+        "Londra Uyumluluğu": r"LONDRA[^0-9]{0,60}\*{0,2}(\d+\.?\d*)\*{0,2}\s*/\s*10",
     }
     for key, pat in flexible.items():
         m = re.search(pat, report_text, re.IGNORECASE)
         if m:
-            scores[key] = max(1, min(10, int(m.group(1))))
+            scores[key] = _clamp(m.group(1))
 
     return scores
