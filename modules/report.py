@@ -171,6 +171,7 @@ def process_and_save(
         trend_label=trend_label,
         report_text=report_text,
         report_path=str(out),
+        youtube_url=youtube_url,
     )
 
     summary_path = REPORTS_DIR / "_ozet_rapor.html"

@@ -11,9 +11,9 @@ from modules.alerts import process_signals
 from modules.bot import run_bot
 from modules.chart import generate_radar_chart
 from modules.config import REPORTS_DIR
-from modules.database import (add_to_watchlist, get_alerts, get_hashtag_stats,
-                               get_latest_scores, get_score_history, get_watchlist,
-                               load_all, remove_from_watchlist, save_analysis)
+from modules.database import (add_to_watchlist, get_alerts, get_artist_youtube_url,
+                               get_hashtag_stats, get_latest_scores, get_score_history,
+                               get_watchlist, load_all, remove_from_watchlist, save_analysis)
 from modules.groq_client import analyze_artist, analyze_with_trend, extract_scores
 from modules.report import build_artist_html, build_summary_html
 from modules.youtube_client import fetch_youtube_data, split_by_date
@@ -691,6 +691,7 @@ def _run_analysis(artist_name: str, raw_comments: str,
         save_analysis(
             artist_name=artist_name, scores=scores,
             trend_label=trend_label, report_text=report_text, report_path=str(out),
+            youtube_url=youtube_url,
         )
         (REPORTS_DIR / "_ozet_rapor.html").write_text(build_summary_html(), encoding="utf-8")
         st.session_state.report_html = html
@@ -951,15 +952,33 @@ with tab_report:
                         unsafe_allow_html=True,
                     )
 
-                # YouTube CTA (session_state'ten URL bul)
-                yt_url = st.session_state.get("last_yt_url")
+                # YouTube CTA + Takip Et
+                yt_url = (get_artist_youtube_url(artist)
+                          or st.session_state.get("last_yt_url"))
                 if yt_url:
-                    st.markdown(
-                        f'<div class="yt-cta-wrap">'
-                        f'<a href="{yt_url}" target="_blank">'
-                        f'▶ YouTube\'da İzle &nbsp;— Kaynağa Git</a></div>',
-                        unsafe_allow_html=True,
-                    )
+                    rp_col1, rp_col2 = st.columns([3, 2])
+                    with rp_col1:
+                        st.markdown(
+                            f'<div class="yt-cta-wrap">'
+                            f'<a href="{yt_url}" target="_blank">'
+                            f'▶ YouTube\'da İzle &nbsp;— Kaynağa Git</a></div>',
+                            unsafe_allow_html=True,
+                        )
+                    with rp_col2:
+                        rp_wl_urls = {w["youtube_url"] for w in get_watchlist()}
+                        if yt_url in rp_wl_urls:
+                            st.markdown(
+                                '<div style="padding:10px 0;font-size:13px;font-weight:700;'
+                                'color:#00FFAA;">✓ Takip Listesinde</div>',
+                                unsafe_allow_html=True,
+                            )
+                        else:
+                            if st.button("📌 Takip Listesine Ekle",
+                                         key="rp_wl_add", use_container_width=True):
+                                add_to_watchlist(artist, yt_url)
+                                st.success(
+                                    f"{artist.replace('_',' ')} takip listesine eklendi!"
+                                )
 
             components.html(st.session_state.report_html, height=1500, scrolling=True)
 
@@ -1108,6 +1127,7 @@ with tab_catalog:
         )
 
         # ── Grid: 3 sütun ──────────────────────────────────
+        wl_urls = {w["youtube_url"] for w in get_watchlist()}
         cols = st.columns(3)
         for i, r in enumerate(filtered):
             name   = r["artist"].replace("_", " ")
@@ -1142,10 +1162,25 @@ with tab_catalog:
                     f'</div>',
                     unsafe_allow_html=True,
                 )
-                if st.button("📄 Raporu Gör", key=f"cat_{r['artist']}_{i}",
+                if st.button("📄 Raporu Gör", key=f"cat_rp_{r['artist']}_{i}",
                              use_container_width=True):
                     st.session_state.goto_report = r["artist"]
                     st.rerun()
+
+                # Takip Et butonu
+                yt_url_cat = get_artist_youtube_url(r["artist"])
+                if yt_url_cat:
+                    if yt_url_cat in wl_urls:
+                        st.markdown(
+                            '<div style="text-align:center;font-size:11px;font-weight:700;'
+                            'color:#00FFAA;padding:4px 0;">✓ Takip Listesinde</div>',
+                            unsafe_allow_html=True,
+                        )
+                    else:
+                        if st.button("📌 Takip Et", key=f"cat_wl_{r['artist']}_{i}",
+                                     use_container_width=True):
+                            add_to_watchlist(r["artist"], yt_url_cat)
+                            st.rerun()
 
 
 # ── TAB 4: HUNTER BOT ─────────────────────────────────────────
@@ -1378,41 +1413,82 @@ with tab_bot:
 
         st.markdown("<div style='height:20px'></div>", unsafe_allow_html=True)
 
-        watchlist = get_watchlist()
-        if not watchlist:
+        # ── Arama + Sıralama ──────────────────────────────────
+        wl_all = get_watchlist()
+        if not wl_all:
             st.markdown("""
             <div class="empty-state" style="padding:60px 40px;">
               <div class="empty-icon">📌</div>
               <div class="empty-title">Takip listesi boş</div>
-              <div class="empty-sub">Bir YouTube analizi yapıp<br><b>Takip Listesine Ekle</b>'ye tıklayın.</div>
+              <div class="empty-sub">
+                Sanatçı Raporu veya Katalog sekmesinde<br>
+                <b>📌 Takip Et</b> butonuna tıkla.
+              </div>
+              <span class="empty-cta">Katalog'a Git →</span>
             </div>
             """, unsafe_allow_html=True)
         else:
-            st.markdown(f'<div style="font-size:11px;color:#5a5a7a;letter-spacing:1.5px;'
-                        f'text-transform:uppercase;margin-bottom:12px;">'
-                        f'{len(watchlist)} Sanatçı Takip Ediliyor</div>', unsafe_allow_html=True)
+            wf1, wf2 = st.columns([3, 2])
+            with wf1:
+                wl_search = st.text_input(
+                    "wl_search", placeholder="🔍 Takip listesinde ara...",
+                    key="wl_search_input", label_visibility="collapsed"
+                )
+            with wf2:
+                wl_sort = st.selectbox(
+                    "wl_sort",
+                    ["Eklenme Tarihi ↓", "Son Kontrol ↓", "İsme Göre A→Z"],
+                    key="wl_sort_select", label_visibility="collapsed"
+                )
+
+            watchlist = list(wl_all)
+            if wl_search:
+                watchlist = [e for e in watchlist
+                             if wl_search.lower() in
+                             e["artist_name"].lower().replace("_", " ")]
+            if wl_sort == "Eklenme Tarihi ↓":
+                watchlist.sort(key=lambda x: x.get("added_date") or "", reverse=True)
+            elif wl_sort == "Son Kontrol ↓":
+                watchlist.sort(key=lambda x: x.get("last_check_date") or "", reverse=True)
+            else:
+                watchlist.sort(key=lambda x: x["artist_name"])
+
+            st.markdown(
+                f'<div style="font-size:11px;color:#6B7280;letter-spacing:1.5px;'
+                f'text-transform:uppercase;margin-bottom:12px;">'
+                f'{len(watchlist)} / {len(wl_all)} Sanatçı</div>',
+                unsafe_allow_html=True,
+            )
+
             for entry in watchlist:
-                c1, c2, c3 = st.columns([3, 2, 1])
+                c1, c2, c3, c4 = st.columns([3, 2, 1, 1])
                 with c1:
                     st.markdown(
                         f'<div class="wl-name">{entry["artist_name"].replace("_"," ")}</div>'
                         f'<div class="wl-url">{entry["youtube_url"]}</div>',
-                        unsafe_allow_html=True
+                        unsafe_allow_html=True,
                     )
                 with c2:
                     last    = entry["last_check_date"]
                     checked = last[:16].replace("T", " ") if last else "Henüz kontrol edilmedi"
-                    added   = entry["added_date"][:10]    if entry["added_date"] else ""
+                    added   = entry["added_date"][:10] if entry["added_date"] else ""
                     st.markdown(
                         f'<div class="wl-meta">Son kontrol: {checked}</div>'
                         f'<div class="wl-meta">Eklenme: {added}</div>',
-                        unsafe_allow_html=True
+                        unsafe_allow_html=True,
                     )
                 with c3:
-                    if st.button("🗑", key=f"rm_{entry['youtube_url']}"):
+                    if st.button("📄", key=f"wl_rp_{entry['youtube_url']}",
+                                 help="Raporu gör"):
+                        st.session_state.goto_report = entry["artist_name"]
+                        st.rerun()
+                with c4:
+                    if st.button("🗑", key=f"rm_{entry['youtube_url']}",
+                                 help="Takipten çıkar"):
                         remove_from_watchlist(entry["youtube_url"])
                         st.rerun()
-                st.markdown('<hr style="border-color:#1c1c30;margin:8px 0;">', unsafe_allow_html=True)
+                st.markdown('<hr style="border-color:#21262D;margin:8px 0;">',
+                            unsafe_allow_html=True)
 
         alerts = get_alerts(limit=10)
         if alerts:

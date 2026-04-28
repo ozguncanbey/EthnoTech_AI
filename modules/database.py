@@ -38,7 +38,8 @@ def _init_db() -> None:
             CREATE TABLE IF NOT EXISTS artists (
                 id                 INTEGER PRIMARY KEY AUTOINCREMENT,
                 name               TEXT UNIQUE NOT NULL,
-                last_analysis_date TEXT
+                last_analysis_date TEXT,
+                youtube_url        TEXT
             );
             CREATE TABLE IF NOT EXISTS scores (
                 id                 INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -142,18 +143,21 @@ def save_analysis(
     report_text: str = None,
     report_path: str = None,
     analyzed_at: str = None,
+    youtube_url: str = None,
 ) -> None:
     now = analyzed_at or datetime.now().isoformat(timespec="seconds")
 
     with _conn() as con:
-        # artists — upsert
+        # artists — upsert; youtube_url varsa güncelle, yoksa eskiyi koru
         con.execute(
             """
-            INSERT INTO artists (name, last_analysis_date)
-            VALUES (?, ?)
-            ON CONFLICT(name) DO UPDATE SET last_analysis_date = excluded.last_analysis_date
+            INSERT INTO artists (name, last_analysis_date, youtube_url)
+            VALUES (?, ?, ?)
+            ON CONFLICT(name) DO UPDATE SET
+                last_analysis_date = excluded.last_analysis_date,
+                youtube_url = COALESCE(excluded.youtube_url, artists.youtube_url)
             """,
-            (artist_name, now),
+            (artist_name, now, youtube_url),
         )
         artist_id = con.execute(
             "SELECT id FROM artists WHERE name = ?", (artist_name,)
@@ -240,6 +244,15 @@ def load_all() -> list:
 
 
 # ── Watchlist ─────────────────────────────────────────────────
+def get_artist_youtube_url(artist_name: str) -> str | None:
+    """Sanatçının analiz kaynağı YouTube URL'sini döner."""
+    with _conn() as con:
+        row = con.execute(
+            "SELECT youtube_url FROM artists WHERE name = ?", (artist_name,)
+        ).fetchone()
+    return row["youtube_url"] if row else None
+
+
 def add_to_watchlist(artist_name: str, youtube_url: str) -> None:
     with _conn() as con:
         con.execute(
@@ -438,7 +451,11 @@ def _migrate_columns() -> None:
                     f"ALTER TABLE scanned_videos ADD COLUMN {col} {definition}"
                 )
             except Exception:
-                pass  # Sütun zaten varsa hata fırlatır — yoksay
+                pass
+        try:
+            con.execute("ALTER TABLE artists ADD COLUMN youtube_url TEXT")
+        except Exception:
+            pass  # Sütun zaten varsa hata fırlatır — yoksay
 
 
 _init_db()
