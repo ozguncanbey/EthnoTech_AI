@@ -29,20 +29,24 @@ def check_signals(
     artist_name: str,
     current: dict,
     previous: dict | None,
+    youtube_url: str | None = None,
 ) -> list[dict]:
     signals = []
     london  = float(current.get("Londra Uyumluluğu", 0))
     display = artist_name.replace("_", " ")
+    yt_line = f"\n▶ {youtube_url}" if youtube_url else ""
 
     if london >= SCORE_THRESHOLD:
+        tag     = "EKSTREM POTANSİYEL" if london >= 9.5 else "GÜÇLÜ"
+        boiler  = "\n⚡ 9.5+ — Boiler Room / Global iş birliği adayı" if london >= 9.5 else ""
         signals.append({
             "type":    "HIGH_SCORE",
             "message": (
                 f"🚨 <b>{display} — {_fmt(london)}/10</b>\n"
                 f"━━━━━━━━━━━━━━━━━━━━\n"
                 f"🎯 Londra Uyumluluğu: <b>{_fmt(london)}/10</b>\n"
-                f"💡 Yatırım Sinyali: {'EKSTREM POTANSIYEL' if london >= 9.5 else 'GÜÇLÜ'}\n"
-                f"{'⚡ 9.5+ — Boiler Room / Global iş birliği adayı' if london >= 9.5 else ''}"
+                f"💡 Yatırım Sinyali: {tag}"
+                f"{boiler}{yt_line}"
             ).strip(),
         })
 
@@ -56,8 +60,8 @@ def check_signals(
                     f"📈 <b>{display} — Yükselen Sinyal</b>\n"
                     f"━━━━━━━━━━━━━━━━━━━━\n"
                     f"🎯 Londra: {_fmt(prev_london)}/10 → <b>{_fmt(london)}/10</b> "
-                    f"(<b>+{rise:.1f} puan</b>)"
-                ),
+                    f"(<b>+{rise:.1f} puan</b>){yt_line}"
+                ).strip(),
             })
 
     return signals
@@ -72,6 +76,7 @@ def send_telegram(message: str) -> None:
         log.warning("Telegram yapılandırılmamış — TELEGRAM_BOT_TOKEN veya TELEGRAM_CHAT_IDS eksik.")
         return
 
+    log.info("Telegram Alert Attempted")
     url = f"https://api.telegram.org/bot{token}/sendMessage"
     for chat_id in chat_ids:
         try:
@@ -95,11 +100,12 @@ def process_signals(
     artist_name: str,
     current_scores: dict,
     prev_scores: dict | None,
+    youtube_url: str | None = None,
 ) -> list[dict]:
     """Sinyalleri kontrol et, DB'ye kaydet ve Telegram'a gönder."""
     from modules.database import save_alert
 
-    signals = check_signals(artist_name, current_scores, prev_scores)
+    signals = check_signals(artist_name, current_scores, prev_scores, youtube_url)
     for sig in signals:
         log.info(f"KRİTİK SİNYAL [{sig['type']}]: {artist_name}")
         save_alert(artist_name, sig["type"], sig["message"])

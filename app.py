@@ -460,7 +460,8 @@ def _artist_card(r: dict, rank: str, delay_base: float = 0.0) -> str:
 
 # ── Analysis runner ───────────────────────────────────────────
 def _run_analysis(artist_name: str, raw_comments: str,
-                  recent_str: str = None, older_str: str = None) -> dict:
+                  recent_str: str = None, older_str: str = None,
+                  youtube_url: str = None) -> dict:
     prev_scores = get_latest_scores(artist_name)
 
     with st.status("Analiz başlatılıyor...", expanded=True) as status:
@@ -475,7 +476,8 @@ def _run_analysis(artist_name: str, raw_comments: str,
         st.write("📊 Puanlar çıkarılıyor ve radar grafiği oluşturuluyor...")
         scores = extract_scores(report_text)
         chart_b64 = generate_radar_chart(scores, artist_name)
-        html = build_artist_html(report_text, artist_name, scores, chart_b64, trend_label)
+        html = build_artist_html(report_text, artist_name, scores, chart_b64,
+                                 trend_label, youtube_url)
 
         st.write("💾 Rapor ve veritabanı kaydediliyor...")
         REPORTS_DIR.mkdir(exist_ok=True)
@@ -490,7 +492,7 @@ def _run_analysis(artist_name: str, raw_comments: str,
         st.session_state.current_artist = artist_name
         status.update(label="✅ Analiz tamamlandı!", state="complete", expanded=False)
 
-    signals = process_signals(artist_name, scores, prev_scores)
+    signals = process_signals(artist_name, scores, prev_scores, youtube_url=youtube_url)
     for sig in signals:
         st.toast(sig["message"].replace("<b>", "**").replace("</b>", "**"), icon="🚨")
 
@@ -555,7 +557,8 @@ with st.sidebar:
                     recent_count = len(recent_str.splitlines()) if recent_str else 0
                     older_count  = len(older_str.splitlines())  if older_str  else 0
                     st.info(f"**{title}**\n\nSon 3 ay: **{recent_count}** · Eskiler: **{older_count}**")
-                    _run_analysis(artist_name, raw_comments, recent_str, older_str)
+                    _run_analysis(artist_name, raw_comments, recent_str, older_str,
+                                  youtube_url=url)
                     st.session_state.last_yt_url    = url
                     st.session_state.last_yt_artist = artist_name
                     st.rerun()

@@ -22,8 +22,18 @@ Maliyet optimizasyonu:
 
 import logging
 import time
+from datetime import datetime, timezone, timedelta
 
 log = logging.getLogger("Hunter")
+
+# ── Discoverability & Market Gap Filtreleri ───────────────────
+# Hedef: 'High Potential, Low Visibility' — keşfedilmemiş yetenek.
+# Strateji: Zaten viral olan veya eski içerik değil; gelişmekte olan,
+# erken keşfedilebilir sanatçıları yakalamak için iki sınır uygulanır:
+#   UPLOAD_MAX_DAYS : Sadece son 12 ayda yüklenen videolar (taze içerik)
+#   VIEW_COUNT_MAX  : 500.000 izlenme altı (zaten keşfedilmemiş = fırsat penceresi)
+UPLOAD_MAX_DAYS = 365
+VIEW_COUNT_MAX  = 500_000
 
 
 # ── Smart Hashtag Engine ──────────────────────────────────────
@@ -102,6 +112,11 @@ def scan_youtube_hashtag(tag: str, max_results: int = 5) -> list[dict]:
     query    = _smart_query(tag, category)
     log.debug(f"  Smart Query: '{query}' (kategori: {category})")
 
+    # Zaman filtresi: sadece son UPLOAD_MAX_DAYS gün içinde yüklenen videolar
+    published_after = (
+        datetime.now(timezone.utc) - timedelta(days=UPLOAD_MAX_DAYS)
+    ).strftime("%Y-%m-%dT%H:%M:%SZ")
+
     youtube = build("youtube", "v3", developerKey=key, cache_discovery=False)
     resp = youtube.search().list(
         q=query,
@@ -112,6 +127,7 @@ def scan_youtube_hashtag(tag: str, max_results: int = 5) -> list[dict]:
         # Vlog, konuşma ve alakasız içerikleri filtreler; API birimini verimli kullanır.
         videoCategoryId="10",
         order="relevance",
+        publishedAfter=published_after,   # Discoverability filtresi: son 12 ay
     ).execute()
 
     results = []
@@ -173,46 +189,91 @@ def scan_instagram_hashtag(tag: str, max_posts: int = 10) -> list[dict]:
 # ── Tek video analiz ──────────────────────────────────────────
 def _analyze_video(video_id: str, video_url: str) -> dict | None:
     """
-    Bir YouTube videosunun yorumlarını çekip analiz eder.
-    Skip Logic  : video_id DB'de kayıtlıysa atlanır.
-    Min Threshold: yorum < MIN_COMMENTS ise LLM'e gönderilmez.
+    Dört kapılı filtreleme + LLM analizi.
+    Gate 1: DB video kaydı (0 maliyet)
+    Gate 2: İzlenme + yüklenme tarihi — Discoverability & Market Gap filtresi (1 API unit)
+    Gate 3: Sanatçı dedup
+    Gate 4: Minimum yorum eşiği
     Returns: {"artist": str, "scores": dict} veya None (atlandı)
     """
     from modules.database import is_video_scanned, mark_video_scanned
-    from modules.youtube_client import fetch_youtube_data, split_by_date
+    from modules.youtube_client import (fetch_video_stats, fetch_youtube_data,
+                                        split_by_date, _parse_yt_date)
     from modules.report import process_and_save
+    from modules.alerts import process_signals
 
+    # Gate 1: daha önce taranan mı?
     if is_video_scanned(video_id):
-        log.info(f"  Atlandı (DB kayıtlı video): {video_id}")
+        log.info(f"  Atlandı (DB kayıtlı): {video_id}")
         return None
+
+    # Gate 2: Discoverability & Market Gap filtresi — 1 API unit
+    view_count, upload_date = 0, ""
+    try:
+        vstats     = fetch_video_stats(video_id)
+        view_count = vstats.get("view_count", 0)
+        upload_date = vstats.get("upload_date", "")
+
+        cutoff    = datetime.now(timezone.utc) - timedelta(days=UPLOAD_MAX_DAYS)
+        upload_dt = _parse_yt_date(upload_date)
+        if upload_dt and upload_dt < cutoff:
+            log.info(f"  Atlandı (eski video {upload_date[:10]}): {video_id}")
+            mark_video_scanned(video_id, was_analyzed=False, skip_reason="too_old",
+                               view_count=view_count, upload_date=upload_date)
+            return None
+
+        if view_count > VIEW_COUNT_MAX:
+            log.info(f"  Atlandı (popüler {view_count:,} izlenme): {video_id}")
+            mark_video_scanned(video_id, was_analyzed=False, skip_reason="too_popular",
+                               view_count=view_count, upload_date=upload_date)
+            return None
+    except Exception as e:
+        log.warning(f"  Video stats alınamadı ({video_id}): {e}")
 
     try:
         safe_name, comments, _ = fetch_youtube_data(video_url)
 
+        # Gate 3: sanatçı zaten DB'de mi?
         if safe_name.lower() in _known_artists():
             log.info(f"  Atlandı (sanatçı DB'de): {safe_name}")
-            mark_video_scanned(video_id, artist_name=safe_name,
-                               was_analyzed=False, skip_reason="artist_exists")
+            mark_video_scanned(video_id, artist_name=safe_name, was_analyzed=False,
+                               skip_reason="artist_exists",
+                               view_count=view_count, upload_date=upload_date)
             return None
 
+        # Gate 4: minimum yorum eşiği
         if len(comments) < MIN_COMMENTS:
-            log.info(f"  Atlandı (yorum {len(comments)} < {MIN_COMMENTS}): {safe_name}")
-            mark_video_scanned(video_id, artist_name=safe_name,
-                               was_analyzed=False, skip_reason="low_comments")
+            log.info(f"  Atlandı ({len(comments)} < {MIN_COMMENTS} yorum): {safe_name}")
+            mark_video_scanned(video_id, artist_name=safe_name, was_analyzed=False,
+                               skip_reason="low_comments",
+                               view_count=view_count, upload_date=upload_date)
             return None
+
+        from modules.database import get_latest_scores
+        prev_scores = get_latest_scores(safe_name)
 
         recent_str, older_str = split_by_date(comments)
         raw_comments = "\n".join(f"- {c['text']}" for c in comments)
-        result = process_and_save(safe_name, raw_comments, recent_str, older_str)
-        london = result["scores"].get("Londra Uyumluluğu", 0)
-        log.info(f"  ✓ Analiz: {safe_name} — Londra {london}/10")
-        mark_video_scanned(video_id, artist_name=safe_name,
-                           was_analyzed=True, skip_reason=None)
+        result = process_and_save(safe_name, raw_comments, recent_str, older_str,
+                                  youtube_url=video_url)
+        london = float(result["scores"].get("Londra Uyumluluğu", 0))
+        log.info(
+            f"  ✓ {safe_name} — {london:.1f}/10 | "
+            f"{view_count:,} izlenme | {upload_date[:10]}"
+        )
+        mark_video_scanned(video_id, artist_name=safe_name, was_analyzed=True,
+                           view_count=view_count, upload_date=upload_date)
+
+        # Yüksek skora ulaşan yeni sanatçılar için anlık Telegram bildirimi
+        process_signals(safe_name, result["scores"], prev_scores,
+                        youtube_url=video_url)
         return result
 
     except Exception as e:
         log.warning(f"  Hata ({video_url}): {e}")
-        mark_video_scanned(video_id, was_analyzed=False, skip_reason=f"error: {e}")
+        mark_video_scanned(video_id, was_analyzed=False,
+                           skip_reason=f"error: {str(e)[:60]}",
+                           view_count=view_count, upload_date=upload_date)
         return None
 
 

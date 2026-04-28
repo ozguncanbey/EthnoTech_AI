@@ -89,7 +89,9 @@ def _init_db() -> None:
                 scanned_at   TEXT NOT NULL,
                 artist_name  TEXT,
                 was_analyzed INTEGER DEFAULT 0,
-                skip_reason  TEXT
+                skip_reason  TEXT,
+                view_count   INTEGER DEFAULT 0,
+                upload_date  TEXT
             );
             CREATE TABLE IF NOT EXISTS hashtag_stats (
                 id                INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -348,17 +350,21 @@ def mark_video_scanned(
     artist_name: str = None,
     was_analyzed: bool = False,
     skip_reason: str = None,
+    view_count: int = 0,
+    upload_date: str = None,
 ) -> None:
     """video_id'yi işlenmiş olarak kaydet (tekrar tarama engellemek için)."""
     with _conn() as con:
         con.execute(
             """
             INSERT OR IGNORE INTO scanned_videos
-                (video_id, scanned_at, artist_name, was_analyzed, skip_reason)
-            VALUES (?, ?, ?, ?, ?)
+                (video_id, scanned_at, artist_name, was_analyzed,
+                 skip_reason, view_count, upload_date)
+            VALUES (?, ?, ?, ?, ?, ?, ?)
             """,
             (video_id, datetime.now().isoformat(timespec="seconds"),
-             artist_name, int(was_analyzed), skip_reason),
+             artist_name, int(was_analyzed), skip_reason,
+             view_count, upload_date),
         )
 
 
@@ -420,5 +426,21 @@ def load_report_text(artist_name: str) -> str | None:
 
 
 # ── Başlangıç ─────────────────────────────────────────────────
+def _migrate_columns() -> None:
+    """Mevcut DB'ye yeni sütunlar ekler (varsa sessizce geçer)."""
+    with _conn() as con:
+        for col, definition in [
+            ("view_count",  "INTEGER DEFAULT 0"),
+            ("upload_date", "TEXT"),
+        ]:
+            try:
+                con.execute(
+                    f"ALTER TABLE scanned_videos ADD COLUMN {col} {definition}"
+                )
+            except Exception:
+                pass  # Sütun zaten varsa hata fırlatır — yoksay
+
+
 _init_db()
+_migrate_columns()
 migrate_from_json()

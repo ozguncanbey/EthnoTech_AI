@@ -67,6 +67,7 @@ def build_artist_html(
     scores: dict,
     chart_b64: str,
     trend_label: str = None,
+    youtube_url: str = None,
 ) -> str:
     london = scores["Londra Uyumluluğu"]
     display_name = artist_name.replace("_", " ")
@@ -77,7 +78,7 @@ def build_artist_html(
         persona_items += (
             f'<div class="persona-item">'
             f'<div class="p-label">{label}</div>'
-            f'<div class="p-score" style="color:{score_color(v)}">{v}</div>'
+            f'<div class="p-score" style="color:{score_color(v)}">{float(v):.1f}</div>'
             f"</div>"
         )
 
@@ -87,16 +88,22 @@ def build_artist_html(
     else:
         trend_badge = ""
 
+    youtube_link = (
+        f'<a href="{youtube_url}" target="_blank" class="yt-link">▶ YouTube</a>'
+        if youtube_url else ""
+    )
+
     return _load_template("artist_report.html").substitute(
         display_name=display_name,
         date=datetime.now().strftime("%d %B %Y, %H:%M"),
         year=datetime.now().year,
-        london_score=london,
+        london_score=f"{float(london):.1f}",
         badge_color=score_color(london),
         persona_items=persona_items,
         chart_b64=chart_b64,
         report_body=format_report_body(report_text),
         trend_badge=trend_badge,
+        youtube_link=youtube_link,
     )
 
 
@@ -140,6 +147,7 @@ def process_and_save(
     raw_comments: str,
     recent_str: str = None,
     older_str: str = None,
+    youtube_url: str = None,
 ) -> dict:
     if recent_str is not None and older_str is not None:
         report_text, trend_label = analyze_with_trend(recent_str, older_str, artist_name)
@@ -149,7 +157,8 @@ def process_and_save(
 
     scores = extract_scores(report_text)
     chart_b64 = generate_radar_chart(scores, artist_name)
-    html = build_artist_html(report_text, artist_name, scores, chart_b64, trend_label)
+    html = build_artist_html(report_text, artist_name, scores, chart_b64,
+                             trend_label, youtube_url)
 
     REPORTS_DIR.mkdir(exist_ok=True)
     out = REPORTS_DIR / f"{artist_name}_rapor.html"

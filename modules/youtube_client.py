@@ -85,6 +85,28 @@ def fetch_youtube_data(url: str) -> tuple:
     return safe_name, comments[:100], title
 
 
+def fetch_video_stats(video_id: str) -> dict:
+    """
+    Bir videonun izlenme ve yüklenme bilgisini döner. Maliyet: 1 API unit.
+    Returns: {view_count, upload_date, title, channel}
+    """
+    from googleapiclient.discovery import build
+    key = get_secret("YOUTUBE_API_KEY")
+    if not key:
+        raise ValueError("YOUTUBE_API_KEY bulunamadı.")
+    youtube = build("youtube", "v3", developerKey=key, cache_discovery=False)
+    resp = youtube.videos().list(part="snippet,statistics", id=video_id).execute()
+    if not resp.get("items"):
+        return {"view_count": 0, "upload_date": "", "title": "", "channel": ""}
+    item = resp["items"][0]
+    return {
+        "view_count":  int(item.get("statistics", {}).get("viewCount", 0)),
+        "upload_date": item["snippet"].get("publishedAt", ""),
+        "title":       item["snippet"].get("title", ""),
+        "channel":     item["snippet"].get("channelTitle", ""),
+    }
+
+
 def _parse_yt_date(date_str: str) -> datetime | None:
     """YouTube tarih string'ini tz-aware datetime'a güvenli şekilde çevirir."""
     if not date_str:
