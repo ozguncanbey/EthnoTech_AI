@@ -1,6 +1,7 @@
 apscheduler
 google-api-python-client
 groq
+instaloader
 matplotlib
 numpy
 pandas

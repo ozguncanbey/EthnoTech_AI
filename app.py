@@ -727,6 +727,75 @@ with tab_bot:
     </div>
     """, unsafe_allow_html=True)
 
+    # ── Otomatik Tarama ───────────────────────────────────────
+    with st.expander("🔍  Otomatik Hashtag Taraması", expanded=False):
+        from modules.hunter import DEFAULT_HASHTAGS, run_hunter
+
+        st.markdown(
+            '<div style="font-size:12px;color:#5a5a7a;margin-bottom:12px;">'
+            'YouTube\'da ethno-tech hashtaglerini tarar, yeni sanatçıları otomatik analiz eder. '
+            'Her tarama ~100 YouTube API unit tüketir (10.000/gün ücretsiz).</div>',
+            unsafe_allow_html=True,
+        )
+
+        hcol1, hcol2 = st.columns([3, 1])
+        with hcol1:
+            selected_tags = st.multiselect(
+                "Taranacak Hashtagler",
+                options=DEFAULT_HASHTAGS,
+                default=DEFAULT_HASHTAGS[:4],
+                help="Her hashtag için YouTube araması yapılır",
+            )
+        with hcol2:
+            max_per_tag = st.slider("Video / Hashtag", 1, 5, 3,
+                                    help="Her hashtagde kaç video analiz edilsin")
+
+        use_ig = st.toggle(
+            "Instagram da Tara (instaloader, hız sınırlı)",
+            value=False,
+            help="Instagram'dan yalnızca potansiyel kullanıcı adları toplanır; "
+                 "tam analiz için sanatçının YouTube URL'si gerekir.",
+        )
+
+        if st.button("🚀  Otomatik Taramayı Başlat", type="primary",
+                     disabled=not selected_tags):
+            log_lines = []
+
+            def _progress(msg: str):
+                log_lines.append(msg)
+
+            with st.status("Tarama çalışıyor...", expanded=True) as scan_status:
+                stats = run_hunter(
+                    hashtags=selected_tags,
+                    max_yt_per_tag=max_per_tag,
+                    use_instagram=use_ig,
+                    progress_cb=_progress,
+                )
+                scan_status.update(label="Tarama tamamlandı ✓", state="complete")
+
+            c1, c2, c3, c4 = st.columns(4)
+            c1.metric("Taranan Video", stats["scanned"])
+            c2.metric("Yeni Analiz",   stats["analyzed"])
+            c3.metric("Atlandı",       stats["skipped"])
+            c4.metric("Hata",          stats["errors"])
+
+            if stats["ig_leads"]:
+                st.markdown("**Instagram Potansiyel Hesaplar:**")
+                for lead in stats["ig_leads"][:15]:
+                    st.markdown(
+                        f'`@{lead["username"]}` &nbsp; '
+                        f'[Post]({lead["post_url"]}) &nbsp; '
+                        f'<span style="color:#5a5a7a;font-size:11px">'
+                        f'{lead["caption_preview"][:80]}</span>',
+                        unsafe_allow_html=True,
+                    )
+
+            if stats["analyzed"] > 0:
+                st.rerun()
+
+    st.markdown("<div style='height:8px'></div>", unsafe_allow_html=True)
+    st.markdown('<hr style="border-color:#1c1c30;margin:0 0 20px 0;">', unsafe_allow_html=True)
+
     col_btn, col_info = st.columns([1, 2])
     with col_btn:
         if st.button("▶  Bot'u Şimdi Çalıştır", type="primary"):
