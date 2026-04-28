@@ -489,9 +489,107 @@ st.markdown("""
 
 # ── Session State ─────────────────────────────────────────────
 for key, default in [("report_html", None), ("current_artist", None),
-                     ("last_yt_url", None), ("last_yt_artist", None)]:
+                     ("last_yt_url", None), ("last_yt_artist", None),
+                     ("goto_report", None)]:
     if key not in st.session_state:
         st.session_state[key] = default
+
+# ── Ek CSS: Sidebar Pills + Score Strip + Katalog ─────────────
+st.markdown("""
+<style>
+/* Sidebar score pill row */
+.sb-pill-row { display:flex; align-items:center; gap:8px; margin-bottom:5px; }
+.sb-pill {
+  min-width:42px; height:34px;
+  display:flex; align-items:center; justify-content:center;
+  border-radius:8px; flex-shrink:0;
+  font-size:12px; font-weight:900;
+}
+.sb-pill-wrap > button {
+  background: var(--bg3) !important;
+  color: var(--text) !important;
+  border: 1px solid var(--border) !important;
+  border-radius:8px !important; font-size:12px !important;
+  font-weight:600 !important; text-align:left !important;
+  padding:6px 10px !important; margin:0 !important;
+  transition:all 0.15s !important;
+}
+.sb-pill-wrap > button:hover {
+  border-color: var(--accent) !important;
+  color: var(--accent) !important;
+}
+
+/* Score Strip (Sanatçı Raporu üstü) */
+.score-strip {
+  border-radius:14px; padding:14px 24px;
+  margin-bottom:20px; display:flex; align-items:center; gap:18px;
+  position:relative; overflow:hidden;
+}
+.score-strip::before {
+  content:''; position:absolute; inset:0;
+  background:rgba(0,0,0,0.18); border-radius:14px;
+}
+.ss-score { font-size:38px; font-weight:900; color:#000; letter-spacing:-1.5px; position:relative; }
+.ss-label { font-size:13px; font-weight:800; color:rgba(0,0,0,0.6);
+            letter-spacing:1.5px; text-transform:uppercase; position:relative; }
+.ss-sub   { font-size:11px; color:rgba(0,0,0,0.45); position:relative; }
+
+/* Catalog cards */
+.cat-card {
+  background:var(--bg2); border:1px solid var(--border);
+  border-radius:16px; padding:0; margin-bottom:14px;
+  overflow:hidden; transition:all 0.2s ease;
+}
+.cat-card:hover {
+  border-color:rgba(0,255,170,0.3);
+  box-shadow:0 6px 24px rgba(0,0,0,0.4);
+  transform:translateY(-2px);
+}
+.cat-header {
+  padding:16px 18px 12px; display:flex;
+  justify-content:space-between; align-items:flex-start;
+}
+.cat-score { font-size:30px; font-weight:900; letter-spacing:-1px; }
+.cat-name  { font-size:15px; font-weight:700; color:var(--text); margin-top:2px; }
+.cat-body  { padding:0 18px 16px; }
+.cat-meta  { font-size:11px; color:var(--muted); margin-bottom:8px; }
+.cat-tag {
+  display:inline-block; font-size:10px; font-weight:700;
+  padding:2px 8px; border-radius:6px; margin-right:4px;
+  background:rgba(0,255,170,0.08); color:var(--accent);
+  border:1px solid rgba(0,255,170,0.2);
+}
+
+/* YouTube CTA button in report */
+.yt-cta-wrap {
+  margin-bottom:16px;
+}
+.yt-cta-wrap a {
+  display:inline-flex; align-items:center; gap:10px;
+  background:rgba(255,0,0,0.12);
+  border:2px solid rgba(255,68,68,0.5);
+  color:#FF4444 !important; text-decoration:none;
+  padding:10px 22px; border-radius:12px;
+  font-weight:800; font-size:14px; letter-spacing:0.3px;
+  transition:all 0.2s;
+}
+.yt-cta-wrap a:hover {
+  background:rgba(255,0,0,0.2);
+  box-shadow:0 0 20px rgba(255,0,0,0.2);
+  transform:translateY(-1px);
+}
+
+/* Filter pill buttons */
+.filter-pills { display:flex; gap:8px; flex-wrap:wrap; margin-bottom:16px; }
+.fpill {
+  font-size:12px; font-weight:700; padding:5px 14px; border-radius:20px;
+  border:1px solid var(--border); color:var(--muted); cursor:pointer;
+  background:var(--bg2); transition:all 0.15s;
+}
+.fpill.active { border-color:var(--accent); color:var(--accent);
+                background:rgba(0,255,170,0.08); }
+</style>
+""", unsafe_allow_html=True)
 
 
 # ── Helper: Artist Card HTML ──────────────────────────────────
@@ -704,18 +802,56 @@ with st.sidebar:
     records = load_all()
     if records:
         st.divider()
-        st.markdown('<div style="font-size:11px;color:#5a5a7a;letter-spacing:1.5px;'
-                    'text-transform:uppercase;margin-bottom:8px;">Sanatçılar</div>',
-                    unsafe_allow_html=True)
+        st.markdown(
+            '<div style="font-size:10px;color:#6B7280;letter-spacing:2px;'
+            'text-transform:uppercase;margin-bottom:8px;">'
+            f'Liderlik Tablosu &nbsp;·&nbsp; {len(records)} Sanatçı</div>',
+            unsafe_allow_html=True
+        )
+
+        # Arama kutusu
+        search_q = st.text_input(
+            "search", placeholder="🔍 Sanatçı ara...",
+            key="artist_search", label_visibility="collapsed"
+        )
+
         ranked_sb = sorted(records, key=lambda x: x["scores"]["Londra Uyumluluğu"], reverse=True)
+        if search_q:
+            ranked_sb = [r for r in ranked_sb
+                         if search_q.lower() in r["artist"].lower().replace("_", " ")]
+
         for r in ranked_sb:
             disp  = r["artist"].replace("_", " ")
-            score = r["scores"]["Londra Uyumluluğu"]
-            st.markdown('<div class="sb-artist">', unsafe_allow_html=True)
-            if st.button(f"{disp}  ·  {float(score):.1f}/10", key=f"sb_{r['artist']}"):
-                _load_artist_report(r["artist"])
-                st.rerun()
-            st.markdown("</div>", unsafe_allow_html=True)
+            score = float(r["scores"]["Londra Uyumluluğu"])
+            trend = r.get("trend_label", "")
+
+            if score >= 9.0:
+                sc, bg, br = "#00FFAA", "rgba(0,255,170,0.1)", "rgba(0,255,170,0.3)"
+                sign = "⚡"
+            elif score >= 7.0:
+                sc, bg, br = "#FFD700", "rgba(255,215,0,0.1)", "rgba(255,215,0,0.3)"
+                sign = ""
+            else:
+                sc, bg, br = "#FF4757", "rgba(255,71,87,0.1)", "rgba(255,71,87,0.3)"
+                sign = ""
+
+            t_icon = {"Yükselen Yıldız": "⬆", "Düşüşte": "⬇", "Stabil": "→"}.get(trend, "")
+
+            # Score pill + isim butonu yan yana
+            c1, c2 = st.columns([1, 3])
+            with c1:
+                st.markdown(
+                    f'<div class="sb-pill" style="background:{bg};border:1px solid {br};">'
+                    f'<span style="color:{sc}">{score:.1f}</span></div>',
+                    unsafe_allow_html=True,
+                )
+            with c2:
+                st.markdown('<div class="sb-pill-wrap">', unsafe_allow_html=True)
+                if st.button(f"{disp} {sign}{t_icon}", key=f"sb_{r['artist']}",
+                             use_container_width=True):
+                    st.session_state.goto_report = r["artist"]
+                    st.rerun()
+                st.markdown("</div>", unsafe_allow_html=True)
 
 
 # ── MAIN HEADER ───────────────────────────────────────────────
@@ -729,9 +865,24 @@ st.markdown("""
 </div>
 """, unsafe_allow_html=True)
 
+# ── goto_report handler: sidebar'dan tıklama → Sanatçı Raporu tab'ına geç ──
+if st.session_state.goto_report:
+    _load_artist_report(st.session_state.goto_report)
+    st.session_state.goto_report = None
+    # JS: Sanatçı Raporu sekmesi (index 1) tıkla
+    components.html("""<script>
+    setTimeout(function() {
+        try {
+            var tabs = window.parent.document.querySelectorAll(
+                '[data-testid="stTabs"] button');
+            if (tabs && tabs.length > 1) tabs[1].click();
+        } catch(e) {}
+    }, 250);
+    </script>""", height=0)
+
 # ── TABS ──────────────────────────────────────────────────────
-tab_radar, tab_report, tab_bot = st.tabs(
-    ["◈ A&R Radar", "📄 Sanatçı Raporu", "🎯 Hunter Bot"]
+tab_radar, tab_report, tab_catalog, tab_bot = st.tabs(
+    ["◈ A&R Radar", "📄 Sanatçı Raporu", "◎ Katalog", "🎯 Hunter Bot"]
 )
 
 # ── TAB 1: A&R RADAR (default) ────────────────────────────────
@@ -767,15 +918,57 @@ with tab_report:
             _load_artist_report(chosen)
 
         if st.session_state.report_html:
+            artist = st.session_state.current_artist
+
+            # ── Score Strip ──────────────────────────────────
+            if artist:
+                sc_data = get_latest_scores(artist)
+                if sc_data:
+                    london = float(sc_data.get("Londra Uyumluluğu", 0))
+                    if london >= 9.5:
+                        strip_bg  = "linear-gradient(135deg,#FFD700,#FF9500,#FFD700)"
+                        strip_lbl = "⭐  LEGENDARY — Tarihî Fırsat"
+                        strip_sub = "Bu fırsat penceresi kapanmadan harekete geç"
+                    elif london >= 9.0:
+                        strip_bg  = "linear-gradient(135deg,#00FFAA,#00D4FF)"
+                        strip_lbl = "⚡  SIGN NOW — Güçlü Yatırım Adayı"
+                        strip_sub = "Londra sahnesiyle yüksek uyum tespit edildi"
+                    elif london >= 7.0:
+                        strip_bg  = "linear-gradient(135deg,#6B7280,#374151)"
+                        strip_lbl = "◎  Potansiyel Aday — Geliştirme Önerili"
+                        strip_sub = "Doğru yönlendirmeyle üst kategoriye çıkabilir"
+                    else:
+                        strip_bg  = "linear-gradient(135deg,#FF4757,#c0392b)"
+                        strip_lbl = "○  Hazır Değil — Ciddi Gelişim Gerekli"
+                        strip_sub = "Şu an için yatırım önerilmez"
+                    st.markdown(
+                        f'<div class="score-strip" style="background:{strip_bg};">'
+                        f'<div class="ss-score">{london:.1f}</div>'
+                        f'<div>'
+                        f'<div class="ss-label">{strip_lbl}</div>'
+                        f'<div class="ss-sub">{strip_sub}</div>'
+                        f'</div></div>',
+                        unsafe_allow_html=True,
+                    )
+
+                # YouTube CTA (session_state'ten URL bul)
+                yt_url = st.session_state.get("last_yt_url")
+                if yt_url:
+                    st.markdown(
+                        f'<div class="yt-cta-wrap">'
+                        f'<a href="{yt_url}" target="_blank">'
+                        f'▶ YouTube\'da İzle &nbsp;— Kaynağa Git</a></div>',
+                        unsafe_allow_html=True,
+                    )
+
             components.html(st.session_state.report_html, height=1500, scrolling=True)
 
-            artist = st.session_state.current_artist
             if artist:
                 history = get_score_history(artist)
                 if len(history) >= 2:
                     st.markdown(
-                        f'<div style="font-size:13px;font-weight:700;color:#5a5a7a;'
-                        f'letter-spacing:1.5px;text-transform:uppercase;margin:24px 0 12px;">'
+                        f'<div style="font-size:12px;font-weight:700;color:#6B7280;'
+                        f'letter-spacing:2px;text-transform:uppercase;margin:28px 0 12px;">'
                         f'📈 {artist.replace("_", " ")} — Puan Geçmişi</div>',
                         unsafe_allow_html=True
                     )
@@ -788,7 +981,14 @@ with tab_report:
                     } for h in history]).set_index("Tarih")
                     st.line_chart(df_h, height=220)
         else:
-            st.info("Rapor bulunamadı. Sanatçıyı yeniden analiz edin.", icon="ℹ️")
+            st.markdown("""
+            <div class="empty-state" style="padding:80px 20px">
+              <div class="empty-icon">📄</div>
+              <div class="empty-title">Rapor seç veya analiz başlat</div>
+              <div class="empty-sub">Soldaki listeden bir sanatçıya tıkla<br>
+              ya da yeni bir YouTube analizi yap.</div>
+            </div>
+            """, unsafe_allow_html=True)
 
 # ── TAB 2: A&R RADAR ─────────────────────────────────────────
 with tab_radar:
@@ -838,7 +1038,117 @@ with tab_radar:
             unsafe_allow_html=True
         )
 
-# ── TAB 3: HUNTER BOT ─────────────────────────────────────────
+# ── TAB 3: KATALOG ────────────────────────────────────────────
+with tab_catalog:
+    cat_records = load_all()
+    if not cat_records:
+        st.markdown("""
+        <div class="empty-state">
+          <div class="empty-icon">◎</div>
+          <div class="empty-title">Katalog boş</div>
+          <div class="empty-sub">İlk analizini yaptığında sanatçılar burada görünür.</div>
+          <span class="empty-cta">Keşfe Başla →</span>
+        </div>
+        """, unsafe_allow_html=True)
+    else:
+        st.markdown(
+            '<div style="margin:4px 0 20px 0;">'
+            '<div style="font-size:18px;font-weight:800;color:#E8EDF4;letter-spacing:-0.3px;">'
+            '◎ Sanatçı Kataloğu</div>'
+            '<div style="font-size:13px;color:#6B7280;margin-top:4px;">'
+            'Tüm analizleri filtrele, karşılaştır ve raporlara hızlıca eriş.</div></div>',
+            unsafe_allow_html=True,
+        )
+
+        # ── Filtreler ──────────────────────────────────────
+        f1, f2, f3 = st.columns([2, 2, 2])
+        with f1:
+            score_filter = st.selectbox(
+                "Skor Filtresi",
+                ["Tümü", "⚡ 9.0+ (Sign Now)", "◎ 7.0–8.9 (Potansiyel)", "○ 7.0 altı"],
+                key="cat_score_filter",
+            )
+        with f2:
+            sort_by = st.selectbox(
+                "Sıralama",
+                ["Skora Göre (↓)", "Skora Göre (↑)", "Tarihe Göre (↓)", "İsme Göre (A→Z)"],
+                key="cat_sort",
+            )
+        with f3:
+            cat_search = st.text_input("", placeholder="🔍 Sanatçı ara...",
+                                       key="cat_search", label_visibility="collapsed")
+
+        # Filtre uygula
+        filtered = list(cat_records)
+        if score_filter == "⚡ 9.0+ (Sign Now)":
+            filtered = [r for r in filtered if float(r["scores"]["Londra Uyumluluğu"]) >= 9.0]
+        elif score_filter == "◎ 7.0–8.9 (Potansiyel)":
+            filtered = [r for r in filtered
+                        if 7.0 <= float(r["scores"]["Londra Uyumluluğu"]) < 9.0]
+        elif score_filter == "○ 7.0 altı":
+            filtered = [r for r in filtered if float(r["scores"]["Londra Uyumluluğu"]) < 7.0]
+        if cat_search:
+            filtered = [r for r in filtered
+                        if cat_search.lower() in r["artist"].lower().replace("_", " ")]
+
+        # Sıralama
+        if sort_by == "Skora Göre (↓)":
+            filtered.sort(key=lambda x: x["scores"]["Londra Uyumluluğu"], reverse=True)
+        elif sort_by == "Skora Göre (↑)":
+            filtered.sort(key=lambda x: x["scores"]["Londra Uyumluluğu"])
+        elif sort_by == "Tarihe Göre (↓)":
+            filtered.sort(key=lambda x: x.get("analyzed_at", ""), reverse=True)
+        else:
+            filtered.sort(key=lambda x: x["artist"])
+
+        st.markdown(
+            f'<div style="font-size:11px;color:#6B7280;margin-bottom:16px;">'
+            f'{len(filtered)} sanatçı gösteriliyor</div>',
+            unsafe_allow_html=True,
+        )
+
+        # ── Grid: 3 sütun ──────────────────────────────────
+        cols = st.columns(3)
+        for i, r in enumerate(filtered):
+            name   = r["artist"].replace("_", " ")
+            score  = float(r["scores"]["Londra Uyumluluğu"])
+            date   = r.get("analyzed_at", "")[:10]
+            trend  = r.get("trend_label") or ""
+            trend_icon = {"Yükselen Yıldız": "⬆", "Düşüşte": "⬇", "Stabil": "→"}.get(trend, "")
+
+            if score >= 9.5:
+                hdr_bg, sc_color, badge = "linear-gradient(135deg,#FFD700,#FF9500)", "#000", "⭐ LEGENDARY"
+            elif score >= 9.0:
+                hdr_bg, sc_color, badge = "linear-gradient(135deg,#00FFAA,#00D4FF)", "#000", "⚡ SIGN NOW"
+            elif score >= 7.0:
+                hdr_bg, sc_color, badge = "linear-gradient(135deg,#1E2530,#21262D)", "#FFD700", "◎ Potansiyel"
+            else:
+                hdr_bg, sc_color, badge = "linear-gradient(135deg,#1a1010,#21262D)", "#FF4757", "○ Zayıf"
+
+            with cols[i % 3]:
+                st.markdown(
+                    f'<div class="cat-card">'
+                    f'<div class="cat-header" style="background:{hdr_bg};">'
+                    f'<div>'
+                    f'<div class="cat-score" style="color:{sc_color}">{score:.1f}</div>'
+                    f'<div class="cat-name" style="color:{"#000" if score >= 9.0 else "#E8EDF4"}">{name}</div>'
+                    f'</div>'
+                    f'<div style="font-size:10px;font-weight:800;color:{"rgba(0,0,0,0.5)" if score >= 9.0 else "#6B7280"};'
+                    f'letter-spacing:1px;text-align:right;">{badge}<br>{trend_icon}</div>'
+                    f'</div>'
+                    f'<div class="cat-body">'
+                    f'<div class="cat-meta">Analiz: {date}</div>'
+                    f'</div>'
+                    f'</div>',
+                    unsafe_allow_html=True,
+                )
+                if st.button("📄 Raporu Gör", key=f"cat_{r['artist']}_{i}",
+                             use_container_width=True):
+                    st.session_state.goto_report = r["artist"]
+                    st.rerun()
+
+
+# ── TAB 4: HUNTER BOT ─────────────────────────────────────────
 with tab_bot:
     from modules.hunter import HASHTAG_CATEGORIES, run_hunter, _category_of, _smart_query
 
