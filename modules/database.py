@@ -91,6 +91,15 @@ def _init_db() -> None:
                 was_analyzed INTEGER DEFAULT 0,
                 skip_reason  TEXT
             );
+            CREATE TABLE IF NOT EXISTS hashtag_stats (
+                id                INTEGER PRIMARY KEY AUTOINCREMENT,
+                hashtag           TEXT NOT NULL,
+                category          TEXT NOT NULL,
+                scan_date         TEXT NOT NULL,
+                videos_found      INTEGER DEFAULT 0,
+                analyzed          INTEGER DEFAULT 0,
+                avg_london_score  REAL DEFAULT 0
+            );
         """)
 
 
@@ -351,6 +360,48 @@ def mark_video_scanned(
             (video_id, datetime.now().isoformat(timespec="seconds"),
              artist_name, int(was_analyzed), skip_reason),
         )
+
+
+def record_hashtag_stats(
+    hashtag: str,
+    category: str,
+    videos_found: int,
+    analyzed: int,
+    avg_london_score: float,
+) -> None:
+    with _conn() as con:
+        con.execute(
+            """
+            INSERT INTO hashtag_stats
+                (hashtag, category, scan_date, videos_found, analyzed, avg_london_score)
+            VALUES (?, ?, ?, ?, ?, ?)
+            """,
+            (hashtag, category,
+             datetime.now().isoformat(timespec="seconds"),
+             videos_found, analyzed, avg_london_score),
+        )
+
+
+def get_hashtag_stats() -> list:
+    """Her hashtag için toplam tarama istatistiklerini döner."""
+    with _conn() as con:
+        rows = con.execute(
+            """
+            SELECT  hashtag,
+                    category,
+                    COUNT(*)           AS total_scans,
+                    SUM(videos_found)  AS total_videos,
+                    SUM(analyzed)      AS total_analyzed,
+                    ROUND(AVG(CASE WHEN analyzed > 0
+                                   THEN avg_london_score ELSE NULL END), 1)
+                                       AS avg_score,
+                    MAX(scan_date)     AS last_scan
+            FROM    hashtag_stats
+            GROUP   BY hashtag, category
+            ORDER   BY avg_score DESC NULLS LAST
+            """
+        ).fetchall()
+    return [dict(row) for row in rows]
 
 
 def load_report_text(artist_name: str) -> str | None:

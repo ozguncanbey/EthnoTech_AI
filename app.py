@@ -11,9 +11,9 @@ from modules.alerts import process_signals
 from modules.bot import run_bot
 from modules.chart import generate_radar_chart
 from modules.config import REPORTS_DIR
-from modules.database import (add_to_watchlist, get_alerts, get_latest_scores,
-                               get_score_history, get_watchlist, load_all,
-                               remove_from_watchlist, save_analysis)
+from modules.database import (add_to_watchlist, get_alerts, get_hashtag_stats,
+                               get_latest_scores, get_score_history, get_watchlist,
+                               load_all, remove_from_watchlist, save_analysis)
 from modules.groq_client import analyze_artist, analyze_with_trend, extract_scores
 from modules.report import build_artist_html, build_summary_html
 from modules.youtube_client import fetch_youtube_data, split_by_date
@@ -729,47 +729,74 @@ with tab_bot:
 
     # ── Otomatik Tarama ───────────────────────────────────────
     with st.expander("🔍  Otomatik Hashtag Taraması", expanded=False):
-        from modules.hunter import DEFAULT_HASHTAGS, run_hunter
+        from modules.hunter import HASHTAG_CATEGORIES, run_hunter, _category_of, _smart_query
 
         st.markdown(
             '<div style="font-size:12px;color:#5a5a7a;margin-bottom:12px;">'
             'YouTube\'da ethno-tech hashtaglerini tarar, yeni sanatçıları otomatik analiz eder. '
+            'Smart Query: her kategoriye kalite filtresi eklenir '
+            '(INSTRUMENT→"live performance", VIBE→"set"). '
             'Her tarama ~100 YouTube API unit tüketir (10.000/gün ücretsiz).</div>',
             unsafe_allow_html=True,
         )
 
-        hcol1, hcol2 = st.columns([3, 1])
-        with hcol1:
-            selected_tags = st.multiselect(
-                "Taranacak Hashtagler",
-                options=DEFAULT_HASHTAGS,
-                default=DEFAULT_HASHTAGS[:4],
-                help="Her hashtag için YouTube araması yapılır",
+        # Kategori bazlı seçim
+        cat_tabs = st.tabs(["🎵 INSTRUMENT", "🌊 VIBE", "🏛 INSTITUTION", "Tümü"])
+        with cat_tabs[0]:
+            sel_inst = st.multiselect("Enstrüman Etiketleri",
+                                      HASHTAG_CATEGORIES["INSTRUMENT"],
+                                      default=HASHTAG_CATEGORIES["INSTRUMENT"][:2],
+                                      key="ht_inst")
+        with cat_tabs[1]:
+            sel_vibe = st.multiselect("Tür/Sahne Etiketleri",
+                                      HASHTAG_CATEGORIES["VIBE"],
+                                      default=HASHTAG_CATEGORIES["VIBE"][:2],
+                                      key="ht_vibe")
+        with cat_tabs[2]:
+            sel_inst2 = st.multiselect("Kurum/Venue Etiketleri",
+                                       HASHTAG_CATEGORIES["INSTITUTION"],
+                                       default=[],
+                                       key="ht_inst2")
+        with cat_tabs[3]:
+            all_tags = [h for cat in HASHTAG_CATEGORIES.values() for h in cat]
+            sel_all = st.multiselect("Tüm Etiketler", all_tags,
+                                     default=all_tags[:4], key="ht_all")
+
+        selected_tags = list(dict.fromkeys(sel_inst + sel_vibe + sel_inst2 + sel_all))
+
+        if selected_tags:
+            preview_rows = "".join(
+                f'<span style="color:#5a5a7a;font-size:11px;margin-right:12px;">'
+                f'<b style="color:#00d4ff">#{t}</b> → '
+                f'<span style="color:#facc15">[{_category_of(t)}]</span> '
+                f'"{_smart_query(t, _category_of(t))}"</span>'
+                for t in selected_tags[:6]
             )
-        with hcol2:
+            st.markdown(
+                f'<div style="background:var(--bg2);border:1px solid var(--border);'
+                f'border-radius:8px;padding:10px 14px;margin:8px 0;line-height:2.2;">'
+                f'<div style="font-size:10px;color:#5a5a7a;letter-spacing:1px;'
+                f'margin-bottom:6px;">SMART QUERY ÖNİZLEME</div>'
+                f'{preview_rows}</div>',
+                unsafe_allow_html=True,
+            )
+
+        hcol1, hcol2 = st.columns([2, 1])
+        with hcol1:
             max_per_tag = st.slider("Video / Hashtag", 1, 5, 3,
                                     help="Her hashtagde kaç video analiz edilsin")
-
-        use_ig = st.toggle(
-            "Instagram da Tara (instaloader, hız sınırlı)",
-            value=False,
-            help="Instagram'dan yalnızca potansiyel kullanıcı adları toplanır; "
-                 "tam analiz için sanatçının YouTube URL'si gerekir.",
-        )
+        with hcol2:
+            use_ig = st.toggle("Instagram Tara", value=False,
+                               help="instaloader ile IG lead keşfi (yalnızca username listesi)")
 
         if st.button("🚀  Otomatik Taramayı Başlat", type="primary",
                      disabled=not selected_tags):
-            log_lines = []
-
-            def _progress(msg: str):
-                log_lines.append(msg)
-
             with st.status("Tarama çalışıyor...", expanded=True) as scan_status:
                 stats = run_hunter(
                     hashtags=selected_tags,
                     max_yt_per_tag=max_per_tag,
                     use_instagram=use_ig,
-                    progress_cb=_progress,
+                    progress_cb=lambda m: st.write(m),
                 )
                 scan_status.update(label="Tarama tamamlandı ✓", state="complete")
 
@@ -783,8 +810,7 @@ with tab_bot:
                 st.markdown("**Instagram Potansiyel Hesaplar:**")
                 for lead in stats["ig_leads"][:15]:
                     st.markdown(
-                        f'`@{lead["username"]}` &nbsp; '
-                        f'[Post]({lead["post_url"]}) &nbsp; '
+                        f'`@{lead["username"]}` &nbsp; [Post]({lead["post_url"]}) &nbsp;'
                         f'<span style="color:#5a5a7a;font-size:11px">'
                         f'{lead["caption_preview"][:80]}</span>',
                         unsafe_allow_html=True,
@@ -792,6 +818,75 @@ with tab_bot:
 
             if stats["analyzed"] > 0:
                 st.rerun()
+
+    # ── Hashtag Performance ───────────────────────────────────
+    ht_data = get_hashtag_stats()
+    with st.expander("📊  Hashtag Performance", expanded=bool(ht_data)):
+        if not ht_data:
+            st.markdown(
+                '<div style="font-size:12px;color:#5a5a7a;padding:12px 0;">'
+                'Henüz tarama yapılmadı. İlk taramadan sonra verimlilik istatistikleri burada görünür.'
+                '</div>',
+                unsafe_allow_html=True,
+            )
+        else:
+            cat_color = {"INSTRUMENT": "#00d4ff", "VIBE": "#00ff87", "INSTITUTION": "#a855f7"}
+            rows_html = ""
+            for row in ht_data:
+                score = row["avg_score"]
+                if score is None:
+                    score_str = "—"
+                    bar_color = "#333"
+                    bar_w     = 0
+                elif score >= 9:
+                    score_str = f"<b style='color:#4ade80'>{score}</b>"
+                    bar_color = "#4ade80"
+                    bar_w     = int(score * 10)
+                elif score >= 7:
+                    score_str = f"<b style='color:#facc15'>{score}</b>"
+                    bar_color = "#facc15"
+                    bar_w     = int(score * 10)
+                else:
+                    score_str = f"<b style='color:#f87171'>{score}</b>"
+                    bar_color = "#f87171"
+                    bar_w     = int(score * 10)
+
+                cat      = row["category"]
+                last     = (row["last_scan"] or "")[:10]
+                cat_html = (
+                    f'<span style="font-size:10px;padding:2px 7px;border-radius:6px;'
+                    f'background:{cat_color.get(cat,"#555")}22;'
+                    f'color:{cat_color.get(cat,"#aaa")};border:1px solid '
+                    f'{cat_color.get(cat,"#555")}44;">{cat}</span>'
+                )
+                rows_html += (
+                    f'<tr>'
+                    f'<td style="padding:8px 10px;font-weight:600;color:#e8e8f4">#{row["hashtag"]}</td>'
+                    f'<td style="padding:8px 10px;">{cat_html}</td>'
+                    f'<td style="padding:8px 10px;text-align:center;color:#5a5a7a">{row["total_scans"]}</td>'
+                    f'<td style="padding:8px 10px;text-align:center;color:#5a5a7a">{row["total_videos"]}</td>'
+                    f'<td style="padding:8px 10px;text-align:center;color:#5a5a7a">{row["total_analyzed"]}</td>'
+                    f'<td style="padding:8px 10px;text-align:center">'
+                    f'<div style="display:flex;align-items:center;gap:8px;">'
+                    f'<div style="flex:1;height:6px;background:#1c1c30;border-radius:3px;">'
+                    f'<div style="width:{bar_w}%;height:100%;background:{bar_color};border-radius:3px;"></div>'
+                    f'</div>{score_str}/10</div></td>'
+                    f'<td style="padding:8px 10px;text-align:center;color:#5a5a7a;font-size:11px">{last}</td>'
+                    f'</tr>'
+                )
+            st.markdown(
+                f'<table style="width:100%;border-collapse:collapse;font-size:13px;">'
+                f'<thead><tr style="border-bottom:1px solid #1c1c30;">'
+                f'<th style="padding:6px 10px;text-align:left;color:#5a5a7a;font-weight:500;font-size:11px;letter-spacing:1px">HASHTAG</th>'
+                f'<th style="padding:6px 10px;text-align:left;color:#5a5a7a;font-weight:500;font-size:11px;letter-spacing:1px">KATEGORİ</th>'
+                f'<th style="padding:6px 10px;text-align:center;color:#5a5a7a;font-weight:500;font-size:11px;letter-spacing:1px">TARAMA</th>'
+                f'<th style="padding:6px 10px;text-align:center;color:#5a5a7a;font-weight:500;font-size:11px;letter-spacing:1px">VIDEO</th>'
+                f'<th style="padding:6px 10px;text-align:center;color:#5a5a7a;font-weight:500;font-size:11px;letter-spacing:1px">ANALİZ</th>'
+                f'<th style="padding:6px 10px;text-align:center;color:#5a5a7a;font-weight:500;font-size:11px;letter-spacing:1px">ORT. LONDRA SKORU</th>'
+                f'<th style="padding:6px 10px;text-align:center;color:#5a5a7a;font-weight:500;font-size:11px;letter-spacing:1px">SON TARAMA</th>'
+                f'</tr></thead><tbody>{rows_html}</tbody></table>',
+                unsafe_allow_html=True,
+            )
 
     st.markdown("<div style='height:8px'></div>", unsafe_allow_html=True)
     st.markdown('<hr style="border-color:#1c1c30;margin:0 0 20px 0;">', unsafe_allow_html=True)
