@@ -10,8 +10,10 @@ tam analiz için sanatçının YouTube URL'si gerekir.
 
 Maliyet optimizasyonu:
   - YouTube search.list: 100 unit/istek (10.000 ücretsiz/gün → ~100 tarama/gün)
-  - Zaten DB'deki sanatçılar atlanır
-  - Yorum sayısı < MIN_COMMENTS olan videolar atlanır
+  - videoCategoryId=10 (Müzik) filtresi alakasız videoları eliyor
+  - Daha önce taranan video_id'ler DB'den kontrol edilerek atlanır
+  - Yorum sayısı < MIN_COMMENTS olan videolar LLM'e gönderilmez
+  - Tarama sonu özeti Telegram'a gönderilir
 """
 
 import logging
@@ -32,9 +34,9 @@ DEFAULT_HASHTAGS = [
     "bosphorus",
 ]
 
-MIN_COMMENTS = 5        # Bu sayının altında yorumu olan videolar atlanır
-YT_SLEEP     = 0.4      # YouTube istekleri arası bekleme (saniye)
-IG_SLEEP     = 2.0      # Instagram istekleri arası bekleme (saniye)
+MIN_COMMENTS = 5    # Bu eşiğin altındaki videolar LLM analizine gönderilmez
+YT_SLEEP     = 0.4  # YouTube API istekleri arası bekleme (saniye)
+IG_SLEEP     = 2.0  # Instagram scraping arası bekleme (saniye)
 
 
 # ── Yardımcı: DB'deki bilinen sanatçılar ──────────────────────
@@ -47,7 +49,7 @@ def _known_artists() -> set[str]:
 def scan_youtube_hashtag(tag: str, max_results: int = 5) -> list[dict]:
     """
     YouTube'da '#tag' araması yapar.
-    Returns: [{"video_url": str, "title": str, "channel": str}]
+    Returns: [{"video_id": str, "video_url": str, "title": str, "channel": str}]
     Maliyet: 100 API unit / çağrı
     """
     from googleapiclient.discovery import build
@@ -63,17 +65,20 @@ def scan_youtube_hashtag(tag: str, max_results: int = 5) -> list[dict]:
         type="video",
         part="snippet",
         maxResults=max_results,
-        videoCategoryId="10",   # Müzik kategorisi
+        # videoCategoryId=10: sadece 'Müzik' kategorisindeki videolar (kategori 10 = Music)
+        # Alakasız konuşma/vlog videolarını filtreler, API birimini verimli kullanır.
+        videoCategoryId="10",
         order="relevance",
     ).execute()
 
     results = []
     for item in resp.get("items", []):
-        vid_id  = item["id"].get("videoId")
+        vid_id = item["id"].get("videoId")
         if not vid_id:
             continue
         snippet = item["snippet"]
         results.append({
+            "video_id":  vid_id,
             "video_url": f"https://www.youtube.com/watch?v={vid_id}",
             "title":     snippet.get("title", ""),
             "channel":   snippet.get("channelTitle", ""),
@@ -111,8 +116,8 @@ def scan_instagram_hashtag(tag: str, max_posts: int = 10) -> list[dict]:
             if i >= max_posts:
                 break
             results.append({
-                "username":       post.owner_username,
-                "post_url":       f"https://www.instagram.com/p/{post.shortcode}/",
+                "username":        post.owner_username,
+                "post_url":        f"https://www.instagram.com/p/{post.shortcode}/",
                 "caption_preview": (post.caption or "")[:200].replace("\n", " "),
             })
             time.sleep(IG_SLEEP)
@@ -123,23 +128,37 @@ def scan_instagram_hashtag(tag: str, max_posts: int = 10) -> list[dict]:
 
 
 # ── Tek video analiz ──────────────────────────────────────────
-def _analyze_video(video_url: str) -> dict | None:
+def _analyze_video(video_id: str, video_url: str) -> dict | None:
     """
     Bir YouTube videosunun yorumlarını çekip analiz eder.
+    Önce video_id DB'de kayıtlı mı diye kontrol eder (Skip Logic).
+    Yorum sayısı MIN_COMMENTS altındaysa LLM'e gönderilmez (Minimum Threshold).
     Returns: {"artist": str, "scores": dict} veya None (atlandı)
     """
+    from modules.database import is_video_scanned, mark_video_scanned
     from modules.youtube_client import fetch_youtube_data, split_by_date
     from modules.report import process_and_save
+
+    # ── 1. Skip Logic: daha önce tarandı mı? ──────────────────
+    if is_video_scanned(video_id):
+        log.info(f"  Atlandı (DB'de kayıtlı video): {video_id}")
+        return None
 
     try:
         safe_name, comments, _ = fetch_youtube_data(video_url)
 
+        # ── 2. Sanatçı zaten analiz edilmiş mi? ───────────────
         if safe_name.lower() in _known_artists():
-            log.info(f"  Atlandı (zaten DB'de): {safe_name}")
+            log.info(f"  Atlandı (sanatçı DB'de): {safe_name}")
+            mark_video_scanned(video_id, artist_name=safe_name,
+                               was_analyzed=False, skip_reason="artist_exists")
             return None
 
+        # ── 3. Minimum Threshold: yeterli yorum var mı? ───────
         if len(comments) < MIN_COMMENTS:
-            log.info(f"  Atlandı (yorum az, {len(comments)} < {MIN_COMMENTS}): {safe_name}")
+            log.info(f"  Atlandı (yorum {len(comments)} < {MIN_COMMENTS}): {safe_name}")
+            mark_video_scanned(video_id, artist_name=safe_name,
+                               was_analyzed=False, skip_reason="low_comments")
             return None
 
         recent_str, older_str = split_by_date(comments)
@@ -147,11 +166,40 @@ def _analyze_video(video_url: str) -> dict | None:
         result = process_and_save(safe_name, raw_comments, recent_str, older_str)
         london = result["scores"].get("Londra Uyumluluğu", "?")
         log.info(f"  ✓ Analiz: {safe_name} — Londra {london}/10")
+
+        mark_video_scanned(video_id, artist_name=safe_name,
+                           was_analyzed=True, skip_reason=None)
         return result
 
     except Exception as e:
         log.warning(f"  Hata ({video_url}): {e}")
+        mark_video_scanned(video_id, was_analyzed=False, skip_reason=f"error: {e}")
         return None
+
+
+# ── Telegram özet bildirimi ───────────────────────────────────
+def _send_summary(stats: dict, hashtags: list[str]) -> None:
+    """Tarama tamamlandığında Telegram'a günlük özet gönderir."""
+    from modules.alerts import send_telegram
+
+    potentials = stats.get("analyzed", 0)
+    flag = "🚨" if potentials > 0 else "📊"
+    msg = (
+        f"{flag} <b>Hunter Tarama Özeti</b>\n"
+        f"━━━━━━━━━━━━━━━━━━━━\n"
+        f"🔍 Taranan Hashtagler: {len(hashtags)}\n"
+        f"📹 Bulunan Video: {stats['scanned']}\n"
+        f"⚡ LLM Analizi Yapılan: {stats['analyzed']}\n"
+        f"⏭ Elenen (skip): {stats['skipped']}\n"
+        f"❌ Hata: {stats['errors']}\n"
+        f"━━━━━━━━━━━━━━━━━━━━\n"
+    )
+    if potentials > 0:
+        msg += f"✅ <b>{potentials} yeni sanatçı veritabanına eklendi!</b>"
+    else:
+        msg += "ℹ️ Bu taramada yeni potansiyel bulunamadı."
+
+    send_telegram(msg)
 
 
 # ── Ana tarama döngüsü ────────────────────────────────────────
@@ -159,7 +207,7 @@ def run_hunter(
     hashtags: list[str] | None = None,
     max_yt_per_tag: int = 3,
     use_instagram: bool = False,
-    progress_cb=None,           # opsiyonel: fn(msg: str) UI güncelleme için
+    progress_cb=None,           # opsiyonel: fn(msg: str) → UI için canlı log
 ) -> dict:
     """
     Hashtagleri tarar, yeni sanatçıları analiz eder.
@@ -186,7 +234,7 @@ def run_hunter(
             _log(f"   {len(videos)} video bulundu")
 
             for v in videos:
-                result = _analyze_video(v["video_url"])
+                result = _analyze_video(v["video_id"], v["video_url"])
                 if result:
                     stats["analyzed"] += 1
                 else:
@@ -206,7 +254,7 @@ def run_hunter(
             except Exception as e:
                 log.error(f"Instagram [{tag}] hatası: {e}")
 
-        time.sleep(1.0)   # tag'lar arası nefes
+        time.sleep(1.0)  # tag'lar arası nefes
 
     _log(
         f"Hunter tamamlandı → "
@@ -214,4 +262,11 @@ def run_hunter(
         f"{stats['skipped']} atlandı | "
         f"{stats['errors']} hata"
     )
+
+    # ── Summary Notification ──────────────────────────────────
+    try:
+        _send_summary(stats, tags)
+    except Exception as e:
+        log.warning(f"Telegram özet gönderilemedi: {e}")
+
     return stats

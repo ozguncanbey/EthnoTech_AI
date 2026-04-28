@@ -83,6 +83,14 @@ def _init_db() -> None:
                 created_at  TEXT,
                 notified    INTEGER DEFAULT 0
             );
+            CREATE TABLE IF NOT EXISTS scanned_videos (
+                id           INTEGER PRIMARY KEY AUTOINCREMENT,
+                video_id     TEXT UNIQUE NOT NULL,
+                scanned_at   TEXT NOT NULL,
+                artist_name  TEXT,
+                was_analyzed INTEGER DEFAULT 0,
+                skip_reason  TEXT
+            );
         """)
 
 
@@ -315,6 +323,34 @@ def get_alerts(limit: int = 20) -> list:
             (limit,),
         ).fetchall()
     return [dict(row) for row in rows]
+
+
+def is_video_scanned(video_id: str) -> bool:
+    """video_id daha önce tarandı mı? True → tekrar tarama, API birimi harca."""
+    with _conn() as con:
+        row = con.execute(
+            "SELECT 1 FROM scanned_videos WHERE video_id = ?", (video_id,)
+        ).fetchone()
+    return row is not None
+
+
+def mark_video_scanned(
+    video_id: str,
+    artist_name: str = None,
+    was_analyzed: bool = False,
+    skip_reason: str = None,
+) -> None:
+    """video_id'yi işlenmiş olarak kaydet (tekrar tarama engellemek için)."""
+    with _conn() as con:
+        con.execute(
+            """
+            INSERT OR IGNORE INTO scanned_videos
+                (video_id, scanned_at, artist_name, was_analyzed, skip_reason)
+            VALUES (?, ?, ?, ?, ?)
+            """,
+            (video_id, datetime.now().isoformat(timespec="seconds"),
+             artist_name, int(was_analyzed), skip_reason),
+        )
 
 
 def load_report_text(artist_name: str) -> str | None:
