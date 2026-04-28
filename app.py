@@ -496,9 +496,25 @@ def _run_analysis(artist_name: str, raw_comments: str,
 
 
 def _load_artist_report(artist_name: str) -> None:
+    # Önce dosyadan oku (hızlı yol)
     html_path = REPORTS_DIR / f"{artist_name}_rapor.html"
     if html_path.exists():
-        st.session_state.report_html = html_path.read_text(encoding="utf-8")
+        st.session_state.report_html    = html_path.read_text(encoding="utf-8")
+        st.session_state.current_artist = artist_name
+        return
+
+    # Dosya yoksa (örn. Streamlit Cloud) DB'den yeniden üret
+    from modules.database import load_report_text, get_latest_scores
+    from modules.report import build_artist_html
+    from modules.chart import generate_radar_chart
+    report_text = load_report_text(artist_name)
+    scores      = get_latest_scores(artist_name)
+    if report_text and scores:
+        chart_b64 = generate_radar_chart(scores, artist_name)
+        html = build_artist_html(report_text, artist_name, scores, chart_b64)
+        REPORTS_DIR.mkdir(exist_ok=True)
+        html_path.write_text(html, encoding="utf-8")
+        st.session_state.report_html    = html
         st.session_state.current_artist = artist_name
 
 
@@ -604,69 +620,56 @@ tab_radar, tab_report, tab_bot = st.tabs(
 
 # ── TAB 2: SANATÇI RAPORU ─────────────────────────────────────
 with tab_report:
-    if st.session_state.report_html:
-        components.html(st.session_state.report_html, height=1500, scrolling=True)
-
-        artist = st.session_state.current_artist
-        if artist:
-            history = get_score_history(artist)
-            if len(history) >= 2:
-                st.markdown(
-                    f'<div style="font-size:13px;font-weight:700;color:#5a5a7a;'
-                    f'letter-spacing:1.5px;text-transform:uppercase;margin:24px 0 12px;">'
-                    f'📈 {artist.replace("_", " ")} — Puan Geçmişi</div>',
-                    unsafe_allow_html=True
-                )
-                df_h = pd.DataFrame([{
-                    "Tarih":             h["analysis_date"][:10],
-                    "Karizma":           h["karizma"],
-                    "Gizem":             h["gizem"],
-                    "Sahne Enerjisi":    h["sahne_enerjisi"],
-                    "Londra Uyumluluğu": h["londra_uyumlulugu"],
-                } for h in history]).set_index("Tarih")
-                st.line_chart(df_h, height=220)
+    all_records_rp = load_all()
+    if not all_records_rp:
+        st.markdown("""
+        <div class="empty-state">
+          <div class="empty-icon">◈</div>
+          <div class="empty-title">Henüz analiz yapılmadı</div>
+          <div class="empty-sub">Sol panelden bir YouTube linki veya yorum girin.</div>
+        </div>
+        """, unsafe_allow_html=True)
     else:
-        # Rapor seçili değilse sanatçı listesini göster
-        all_records = load_all()
-        if not all_records:
-            st.markdown("""
-            <div class="empty-state">
-              <div class="empty-icon">◈</div>
-              <div class="empty-title">Henüz analiz yapılmadı</div>
-              <div class="empty-sub">Sol panelden bir YouTube linki veya yorum girin.</div>
-            </div>
-            """, unsafe_allow_html=True)
-        else:
-            st.markdown(
-                '<div style="font-size:13px;color:#5a5a7a;letter-spacing:1.5px;'
-                'text-transform:uppercase;margin-bottom:20px;">Sanatçı Seç</div>',
-                unsafe_allow_html=True
-            )
-            ranked_rp = sorted(all_records,
-                               key=lambda x: x["scores"]["Londra Uyumluluğu"],
-                               reverse=True)
-            medals = ["🥇", "🥈", "🥉"]
-            cols = st.columns(3)
-            for i, r in enumerate(ranked_rp):
-                name  = r["artist"].replace("_", " ")
-                score = r["scores"]["Londra Uyumluluğu"]
-                rank  = medals[i] if i < 3 else f"#{i+1}"
-                with cols[i % 3]:
+        ranked_rp = sorted(all_records_rp,
+                           key=lambda x: x["scores"]["Londra Uyumluluğu"],
+                           reverse=True)
+
+        # Selectbox: tab sıfırlanmadan sanatçı değiştirmeyi sağlar
+        chosen = st.selectbox(
+            "Sanatçı",
+            options=[r["artist"] for r in ranked_rp],
+            format_func=lambda a: a.replace("_", " "),
+            key="report_select",
+            label_visibility="collapsed",
+        )
+
+        # Seçim değişince doğrudan yükle (st.rerun() gerekmez)
+        if chosen:
+            _load_artist_report(chosen)
+
+        if st.session_state.report_html:
+            components.html(st.session_state.report_html, height=1500, scrolling=True)
+
+            artist = st.session_state.current_artist
+            if artist:
+                history = get_score_history(artist)
+                if len(history) >= 2:
                     st.markdown(
-                        f'<div style="background:#0e0e1a;border:1px solid #1c1c30;'
-                        f'border-radius:12px;padding:16px 18px;margin-bottom:12px;">'
-                        f'<div style="font-size:18px;margin-bottom:6px;">{rank}</div>'
-                        f'<div style="font-weight:700;font-size:15px;color:#e8e8f4;'
-                        f'margin-bottom:4px;">{name}</div>'
-                        f'<div style="font-size:13px;background:linear-gradient(135deg,#00ff87,#00d4ff);'
-                        f'-webkit-background-clip:text;-webkit-text-fill-color:transparent;'
-                        f'font-weight:800;">{score}/10</div>'
-                        f'</div>',
+                        f'<div style="font-size:13px;font-weight:700;color:#5a5a7a;'
+                        f'letter-spacing:1.5px;text-transform:uppercase;margin:24px 0 12px;">'
+                        f'📈 {artist.replace("_", " ")} — Puan Geçmişi</div>',
                         unsafe_allow_html=True
                     )
-                    if st.button("Raporu Gör", key=f"rp_{r['artist']}"):
-                        _load_artist_report(r["artist"])
-                        st.rerun()
+                    df_h = pd.DataFrame([{
+                        "Tarih":             h["analysis_date"][:10],
+                        "Karizma":           h["karizma"],
+                        "Gizem":             h["gizem"],
+                        "Sahne Enerjisi":    h["sahne_enerjisi"],
+                        "Londra Uyumluluğu": h["londra_uyumlulugu"],
+                    } for h in history]).set_index("Tarih")
+                    st.line_chart(df_h, height=220)
+        else:
+            st.info("Rapor bulunamadı. Sanatçıyı yeniden analiz edin.", icon="ℹ️")
 
 # ── TAB 2: A&R RADAR ─────────────────────────────────────────
 with tab_radar:
