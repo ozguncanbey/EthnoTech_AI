@@ -718,258 +718,274 @@ with tab_radar:
 
 # ── TAB 3: HUNTER BOT ─────────────────────────────────────────
 with tab_bot:
-    st.markdown("""
-    <div style="margin-bottom:20px;">
-      <div style="font-size:18px;font-weight:700;color:#e8e8f4;">🎯 Hunter Bot</div>
-      <div style="font-size:13px;color:#5a5a7a;margin-top:4px;">
-        Takip listesindeki sanatçıları otomatik izler, yeni yorumlar geldiğinde raporu günceller.
-      </div>
-    </div>
-    """, unsafe_allow_html=True)
+    from modules.hunter import HASHTAG_CATEGORIES, run_hunter, _category_of, _smart_query
 
-    # ── Otomatik Tarama ───────────────────────────────────────
-    with st.expander("🔍  Otomatik Hashtag Taraması", expanded=False):
-        from modules.hunter import HASHTAG_CATEGORIES, run_hunter, _category_of, _smart_query
+    bot_discover, bot_watchlist = st.tabs(["🔍 Yeni Sanatçı Keşfet", "📌 Takip & İzleme"])
 
+    # ════════════════════════════════════════════════════════════
+    # DISCOVERY MODE
+    # ════════════════════════════════════════════════════════════
+    with bot_discover:
         st.markdown(
-            '<div style="font-size:12px;color:#5a5a7a;margin-bottom:12px;">'
-            'YouTube\'da ethno-tech hashtaglerini tarar, yeni sanatçıları otomatik analiz eder. '
-            'Smart Query: her kategoriye kalite filtresi eklenir '
-            '(INSTRUMENT→"live performance", VIBE→"set"). '
-            'Her tarama ~100 YouTube API unit tüketir (10.000/gün ücretsiz).</div>',
+            '<div style="margin:4px 0 20px 0;">'
+            '<div style="font-size:18px;font-weight:700;color:#e8e8f4;">🔍 Discovery Mode</div>'
+            '<div style="font-size:13px;color:#5a5a7a;margin-top:4px;">'
+            'YouTube\'da seçtiğin hashtagleri tarar, hiç tanımadığın sanatçıları bulup '
+            'AI ile puanlar ve veritabanına ekler.</div></div>',
             unsafe_allow_html=True,
         )
 
-        # Kategori bazlı seçim
-        cat_tabs = st.tabs(["🎵 INSTRUMENT", "🌊 VIBE", "🏛 INSTITUTION", "Tümü"])
-        with cat_tabs[0]:
-            sel_inst = st.multiselect("Enstrüman Etiketleri",
-                                      HASHTAG_CATEGORIES["INSTRUMENT"],
-                                      default=HASHTAG_CATEGORIES["INSTRUMENT"][:2],
-                                      key="ht_inst")
-        with cat_tabs[1]:
-            sel_vibe = st.multiselect("Tür/Sahne Etiketleri",
-                                      HASHTAG_CATEGORIES["VIBE"],
-                                      default=HASHTAG_CATEGORIES["VIBE"][:2],
-                                      key="ht_vibe")
-        with cat_tabs[2]:
-            sel_inst2 = st.multiselect("Kurum/Venue Etiketleri",
-                                       HASHTAG_CATEGORIES["INSTITUTION"],
-                                       default=[],
-                                       key="ht_inst2")
-        with cat_tabs[3]:
-            all_tags = [h for cat in HASHTAG_CATEGORIES.values() for h in cat]
-            sel_all = st.multiselect("Tüm Etiketler", all_tags,
-                                     default=all_tags[:4], key="ht_all")
+        # ── Hashtag seçici ────────────────────────────────────
+        all_tags_flat = [h for cat in HASHTAG_CATEGORIES.values() for h in cat]
+        tag_labels = {
+            h: f"{h}  [{_category_of(h)}]"
+            for h in all_tags_flat
+        }
+        disc_tags = st.multiselect(
+            "Hangi hashtagleri tarayalım?",
+            options=all_tags_flat,
+            default=all_tags_flat[:5],
+            format_func=lambda h: f"#{h}  ·  {_category_of(h)}",
+            help="Seçilen her hashtag için YouTube'da Smart Query araması yapılır",
+        )
 
-        selected_tags = list(dict.fromkeys(sel_inst + sel_vibe + sel_inst2 + sel_all))
-
-        if selected_tags:
-            preview_rows = "".join(
-                f'<span style="color:#5a5a7a;font-size:11px;margin-right:12px;">'
-                f'<b style="color:#00d4ff">#{t}</b> → '
-                f'<span style="color:#facc15">[{_category_of(t)}]</span> '
-                f'"{_smart_query(t, _category_of(t))}"</span>'
-                for t in selected_tags[:6]
+        if disc_tags:
+            # Smart Query önizleme (pill formatında)
+            pills = "".join(
+                f'<span style="display:inline-block;margin:3px 5px 3px 0;padding:4px 10px;'
+                f'border-radius:20px;border:1px solid #1c1c30;font-size:11px;color:#5a5a7a;">'
+                f'<b style="color:#00d4ff">#{t}</b>'
+                f'<span style="color:#3a3a5a;margin:0 4px">→</span>'
+                f'<span style="color:#e8e8f4">{_smart_query(t, _category_of(t))}</span>'
+                f'</span>'
+                for t in disc_tags
             )
+            st.markdown(
+                f'<div style="margin:8px 0 16px 0;line-height:2;">{pills}</div>',
+                unsafe_allow_html=True,
+            )
+
+        d_col1, d_col2 = st.columns([2, 1])
+        with d_col1:
+            disc_max = st.slider(
+                "Hashtag başına kaç video?", 1, 5, 3,
+                help="Toplam API maliyeti = seçilen hashtag × bu sayı × 100 birim",
+            )
+        with d_col2:
+            st.markdown("<div style='height:28px'></div>", unsafe_allow_html=True)
+            disc_count = len(disc_tags) * disc_max
             st.markdown(
                 f'<div style="background:var(--bg2);border:1px solid var(--border);'
-                f'border-radius:8px;padding:10px 14px;margin:8px 0;line-height:2.2;">'
-                f'<div style="font-size:10px;color:#5a5a7a;letter-spacing:1px;'
-                f'margin-bottom:6px;">SMART QUERY ÖNİZLEME</div>'
-                f'{preview_rows}</div>',
+                f'border-radius:8px;padding:10px 14px;font-size:12px;">'
+                f'<span style="color:#5a5a7a">Taranacak:</span> '
+                f'<b style="color:#00ff87">~{disc_count} video</b><br>'
+                f'<span style="color:#5a5a7a">API maliyeti:</span> '
+                f'<b style="color:#facc15">~{len(disc_tags) * 100} birim</b>'
+                f'</div>',
                 unsafe_allow_html=True,
             )
 
-        hcol1, hcol2 = st.columns([2, 1])
-        with hcol1:
-            max_per_tag = st.slider("Video / Hashtag", 1, 5, 3,
-                                    help="Her hashtagde kaç video analiz edilsin")
-        with hcol2:
-            use_ig = st.toggle("Instagram Tara", value=False,
-                               help="instaloader ile IG lead keşfi (yalnızca username listesi)")
+        run_disc = st.button(
+            "🔍  Yeni Sanatçıları Keşfet",
+            type="primary",
+            disabled=not disc_tags,
+            use_container_width=True,
+        )
 
-        if st.button("🚀  Otomatik Taramayı Başlat", type="primary",
-                     disabled=not selected_tags):
-            with st.status("Tarama çalışıyor...", expanded=True) as scan_status:
-                stats = run_hunter(
-                    hashtags=selected_tags,
-                    max_yt_per_tag=max_per_tag,
-                    use_instagram=use_ig,
+        if run_disc:
+            artists_before = {r["artist"] for r in load_all()}
+
+            with st.status("Keşif taraması başladı...", expanded=True) as disc_status:
+                disc_stats = run_hunter(
+                    hashtags=disc_tags,
+                    max_yt_per_tag=disc_max,
+                    use_instagram=False,
                     progress_cb=lambda m: st.write(m),
                 )
-                scan_status.update(label="Tarama tamamlandı ✓", state="complete")
+                disc_status.update(
+                    label=f"Tarama tamamlandı — {disc_stats['analyzed']} yeni sanatçı bulundu ✓",
+                    state="complete",
+                )
 
-            c1, c2, c3, c4 = st.columns(4)
-            c1.metric("Taranan Video", stats["scanned"])
-            c2.metric("Yeni Analiz",   stats["analyzed"])
-            c3.metric("Atlandı",       stats["skipped"])
-            c4.metric("Hata",          stats["errors"])
+            m1, m2, m3, m4 = st.columns(4)
+            m1.metric("Taranan Video",  disc_stats["scanned"])
+            m2.metric("Yeni Sanatçı",   disc_stats["analyzed"],
+                      delta=f"+{disc_stats['analyzed']}" if disc_stats["analyzed"] else None)
+            m3.metric("Elendi",         disc_stats["skipped"])
+            m4.metric("Hata",           disc_stats["errors"])
 
-            if stats["ig_leads"]:
-                st.markdown("**Instagram Potansiyel Hesaplar:**")
-                for lead in stats["ig_leads"][:15]:
+            if disc_stats["analyzed"] > 0:
+                # Yeni eklenen sanatçıları göster
+                artists_after  = load_all()
+                new_records    = [r for r in artists_after
+                                  if r["artist"] not in artists_before]
+                if new_records:
                     st.markdown(
-                        f'`@{lead["username"]}` &nbsp; [Post]({lead["post_url"]}) &nbsp;'
-                        f'<span style="color:#5a5a7a;font-size:11px">'
-                        f'{lead["caption_preview"][:80]}</span>',
+                        '<div style="font-size:11px;color:#5a5a7a;letter-spacing:1.5px;'
+                        'text-transform:uppercase;margin:20px 0 12px 0;">'
+                        '✨ Yeni Keşfedilen Sanatçılar</div>',
                         unsafe_allow_html=True,
                     )
-
-            if stats["analyzed"] > 0:
+                    medals = ["🥇", "🥈", "🥉"]
+                    all_cards = "".join(
+                        _artist_card(r, medals[i] if i < 3 else "⭐", delay_base=i * 0.05)
+                        for i, r in enumerate(
+                            sorted(new_records,
+                                   key=lambda x: x["scores"]["Londra Uyumluluğu"],
+                                   reverse=True)
+                        )
+                    )
+                    st.markdown(all_cards, unsafe_allow_html=True)
                 st.rerun()
+            else:
+                st.info(
+                    "Bu hashtaglerde yeni sanatçı bulunamadı. "
+                    "Farklı hashtagler dene veya 'Video / Hashtag' sayısını artır.",
+                    icon="ℹ️",
+                )
 
-    # ── Hashtag Performance ───────────────────────────────────
-    ht_data = get_hashtag_stats()
-    with st.expander("📊  Hashtag Performance", expanded=bool(ht_data)):
-        if not ht_data:
-            st.markdown(
-                '<div style="font-size:12px;color:#5a5a7a;padding:12px 0;">'
-                'Henüz tarama yapılmadı. İlk taramadan sonra verimlilik istatistikleri burada görünür.'
-                '</div>',
-                unsafe_allow_html=True,
-            )
+        # ── Hashtag Performance (discovery tab'ında özet olarak) ─
+        ht_data = get_hashtag_stats()
+        if ht_data:
+            with st.expander("📊  Hashtag Performance", expanded=False):
+                cat_color = {"INSTRUMENT": "#00d4ff", "VIBE": "#00ff87", "INSTITUTION": "#a855f7"}
+                rows_html = ""
+                for row in ht_data:
+                    score = row["avg_score"]
+                    if score is None:
+                        score_str, bar_color, bar_w = "—", "#333", 0
+                    elif score >= 9:
+                        score_str = f"<b style='color:#4ade80'>{score}</b>"
+                        bar_color, bar_w = "#4ade80", int(score * 10)
+                    elif score >= 7:
+                        score_str = f"<b style='color:#facc15'>{score}</b>"
+                        bar_color, bar_w = "#facc15", int(score * 10)
+                    else:
+                        score_str = f"<b style='color:#f87171'>{score}</b>"
+                        bar_color, bar_w = "#f87171", int(score * 10)
+                    cat      = row["category"]
+                    last     = (row["last_scan"] or "")[:10]
+                    cat_html = (
+                        f'<span style="font-size:10px;padding:2px 7px;border-radius:6px;'
+                        f'background:{cat_color.get(cat,"#555")}22;'
+                        f'color:{cat_color.get(cat,"#aaa")};border:1px solid '
+                        f'{cat_color.get(cat,"#555")}44;">{cat}</span>'
+                    )
+                    rows_html += (
+                        f'<tr>'
+                        f'<td style="padding:8px 10px;font-weight:600;color:#e8e8f4">#{row["hashtag"]}</td>'
+                        f'<td style="padding:8px 10px;">{cat_html}</td>'
+                        f'<td style="padding:8px 10px;text-align:center;color:#5a5a7a">{row["total_videos"]}</td>'
+                        f'<td style="padding:8px 10px;text-align:center;color:#5a5a7a">{row["total_analyzed"]}</td>'
+                        f'<td style="padding:8px 10px;text-align:center">'
+                        f'<div style="display:flex;align-items:center;gap:8px;">'
+                        f'<div style="flex:1;height:6px;background:#1c1c30;border-radius:3px;">'
+                        f'<div style="width:{bar_w}%;height:100%;background:{bar_color};border-radius:3px;"></div>'
+                        f'</div>{score_str}/10</div></td>'
+                        f'<td style="padding:8px 10px;text-align:center;color:#5a5a7a;font-size:11px">{last}</td>'
+                        f'</tr>'
+                    )
+                st.markdown(
+                    f'<table style="width:100%;border-collapse:collapse;font-size:13px;">'
+                    f'<thead><tr style="border-bottom:1px solid #1c1c30;">'
+                    f'<th style="padding:6px 10px;text-align:left;color:#5a5a7a;font-size:11px">HASHTAG</th>'
+                    f'<th style="padding:6px 10px;color:#5a5a7a;font-size:11px">KATEGORİ</th>'
+                    f'<th style="padding:6px 10px;text-align:center;color:#5a5a7a;font-size:11px">VİDEO</th>'
+                    f'<th style="padding:6px 10px;text-align:center;color:#5a5a7a;font-size:11px">ANALİZ</th>'
+                    f'<th style="padding:6px 10px;text-align:center;color:#5a5a7a;font-size:11px">ORT. SKOR</th>'
+                    f'<th style="padding:6px 10px;text-align:center;color:#5a5a7a;font-size:11px">SON TARAMA</th>'
+                    f'</tr></thead><tbody>{rows_html}</tbody></table>',
+                    unsafe_allow_html=True,
+                )
+
+    # ════════════════════════════════════════════════════════════
+    # WATCHLIST & MONITORING
+    # ════════════════════════════════════════════════════════════
+    with bot_watchlist:
+        st.markdown(
+            '<div style="margin:4px 0 20px 0;">'
+            '<div style="font-size:18px;font-weight:700;color:#e8e8f4;">📌 Takip & İzleme</div>'
+            '<div style="font-size:13px;color:#5a5a7a;margin-top:4px;">'
+            'Takip listesindekilerde yeni yorum çıkınca raporu otomatik günceller.</div></div>',
+            unsafe_allow_html=True,
+        )
+
+        col_btn, col_info = st.columns([1, 2])
+        with col_btn:
+            if st.button("▶  Takip Listesini Güncelle", type="primary"):
+                with st.spinner("Hunter Bot çalışıyor..."):
+                    result = run_bot()
+                st.success(f"Tamamlandı — {result['updated']}/{result['total']} güncellendi.")
+        with col_info:
+            st.markdown("""
+            <div style="background:var(--bg2);border:1px solid var(--border);border-radius:10px;
+                        padding:14px 18px;font-size:12px;color:#5a5a7a;line-height:1.8;">
+              <code style="color:#00ff87">python3 modules/bot.py --hours 24</code> — sürekli mod<br>
+              <code style="color:#00ff87">python3 modules/bot.py --once</code> — tek seferlik
+            </div>
+            """, unsafe_allow_html=True)
+
+        st.markdown("<div style='height:20px'></div>", unsafe_allow_html=True)
+
+        watchlist = get_watchlist()
+        if not watchlist:
+            st.markdown("""
+            <div class="empty-state" style="padding:60px 40px;">
+              <div class="empty-icon">📌</div>
+              <div class="empty-title">Takip listesi boş</div>
+              <div class="empty-sub">Bir YouTube analizi yapıp<br><b>Takip Listesine Ekle</b>'ye tıklayın.</div>
+            </div>
+            """, unsafe_allow_html=True)
         else:
-            cat_color = {"INSTRUMENT": "#00d4ff", "VIBE": "#00ff87", "INSTITUTION": "#a855f7"}
-            rows_html = ""
-            for row in ht_data:
-                score = row["avg_score"]
-                if score is None:
-                    score_str = "—"
-                    bar_color = "#333"
-                    bar_w     = 0
-                elif score >= 9:
-                    score_str = f"<b style='color:#4ade80'>{score}</b>"
-                    bar_color = "#4ade80"
-                    bar_w     = int(score * 10)
-                elif score >= 7:
-                    score_str = f"<b style='color:#facc15'>{score}</b>"
-                    bar_color = "#facc15"
-                    bar_w     = int(score * 10)
-                else:
-                    score_str = f"<b style='color:#f87171'>{score}</b>"
-                    bar_color = "#f87171"
-                    bar_w     = int(score * 10)
+            st.markdown(f'<div style="font-size:11px;color:#5a5a7a;letter-spacing:1.5px;'
+                        f'text-transform:uppercase;margin-bottom:12px;">'
+                        f'{len(watchlist)} Sanatçı Takip Ediliyor</div>', unsafe_allow_html=True)
+            for entry in watchlist:
+                c1, c2, c3 = st.columns([3, 2, 1])
+                with c1:
+                    st.markdown(
+                        f'<div class="wl-name">{entry["artist_name"].replace("_"," ")}</div>'
+                        f'<div class="wl-url">{entry["youtube_url"]}</div>',
+                        unsafe_allow_html=True
+                    )
+                with c2:
+                    last    = entry["last_check_date"]
+                    checked = last[:16].replace("T", " ") if last else "Henüz kontrol edilmedi"
+                    added   = entry["added_date"][:10]    if entry["added_date"] else ""
+                    st.markdown(
+                        f'<div class="wl-meta">Son kontrol: {checked}</div>'
+                        f'<div class="wl-meta">Eklenme: {added}</div>',
+                        unsafe_allow_html=True
+                    )
+                with c3:
+                    if st.button("🗑", key=f"rm_{entry['youtube_url']}"):
+                        remove_from_watchlist(entry["youtube_url"])
+                        st.rerun()
+                st.markdown('<hr style="border-color:#1c1c30;margin:8px 0;">', unsafe_allow_html=True)
 
-                cat      = row["category"]
-                last     = (row["last_scan"] or "")[:10]
-                cat_html = (
-                    f'<span style="font-size:10px;padding:2px 7px;border-radius:6px;'
-                    f'background:{cat_color.get(cat,"#555")}22;'
-                    f'color:{cat_color.get(cat,"#aaa")};border:1px solid '
-                    f'{cat_color.get(cat,"#555")}44;">{cat}</span>'
-                )
-                rows_html += (
-                    f'<tr>'
-                    f'<td style="padding:8px 10px;font-weight:600;color:#e8e8f4">#{row["hashtag"]}</td>'
-                    f'<td style="padding:8px 10px;">{cat_html}</td>'
-                    f'<td style="padding:8px 10px;text-align:center;color:#5a5a7a">{row["total_scans"]}</td>'
-                    f'<td style="padding:8px 10px;text-align:center;color:#5a5a7a">{row["total_videos"]}</td>'
-                    f'<td style="padding:8px 10px;text-align:center;color:#5a5a7a">{row["total_analyzed"]}</td>'
-                    f'<td style="padding:8px 10px;text-align:center">'
-                    f'<div style="display:flex;align-items:center;gap:8px;">'
-                    f'<div style="flex:1;height:6px;background:#1c1c30;border-radius:3px;">'
-                    f'<div style="width:{bar_w}%;height:100%;background:{bar_color};border-radius:3px;"></div>'
-                    f'</div>{score_str}/10</div></td>'
-                    f'<td style="padding:8px 10px;text-align:center;color:#5a5a7a;font-size:11px">{last}</td>'
-                    f'</tr>'
-                )
-            st.markdown(
-                f'<table style="width:100%;border-collapse:collapse;font-size:13px;">'
-                f'<thead><tr style="border-bottom:1px solid #1c1c30;">'
-                f'<th style="padding:6px 10px;text-align:left;color:#5a5a7a;font-weight:500;font-size:11px;letter-spacing:1px">HASHTAG</th>'
-                f'<th style="padding:6px 10px;text-align:left;color:#5a5a7a;font-weight:500;font-size:11px;letter-spacing:1px">KATEGORİ</th>'
-                f'<th style="padding:6px 10px;text-align:center;color:#5a5a7a;font-weight:500;font-size:11px;letter-spacing:1px">TARAMA</th>'
-                f'<th style="padding:6px 10px;text-align:center;color:#5a5a7a;font-weight:500;font-size:11px;letter-spacing:1px">VIDEO</th>'
-                f'<th style="padding:6px 10px;text-align:center;color:#5a5a7a;font-weight:500;font-size:11px;letter-spacing:1px">ANALİZ</th>'
-                f'<th style="padding:6px 10px;text-align:center;color:#5a5a7a;font-weight:500;font-size:11px;letter-spacing:1px">ORT. LONDRA SKORU</th>'
-                f'<th style="padding:6px 10px;text-align:center;color:#5a5a7a;font-weight:500;font-size:11px;letter-spacing:1px">SON TARAMA</th>'
-                f'</tr></thead><tbody>{rows_html}</tbody></table>',
-                unsafe_allow_html=True,
-            )
-
-    st.markdown("<div style='height:8px'></div>", unsafe_allow_html=True)
-    st.markdown('<hr style="border-color:#1c1c30;margin:0 0 20px 0;">', unsafe_allow_html=True)
-
-    col_btn, col_info = st.columns([1, 2])
-    with col_btn:
-        if st.button("▶  Bot'u Şimdi Çalıştır", type="primary"):
-            with st.spinner("Hunter Bot çalışıyor..."):
-                result = run_bot()
-            st.success(f"Tamamlandı — {result['updated']}/{result['total']} sanatçı güncellendi.")
-    with col_info:
-        st.markdown("""
-        <div style="background:var(--bg2);border:1px solid var(--border);border-radius:10px;
-                    padding:14px 18px;font-size:12px;color:#5a5a7a;line-height:1.8;">
-          <code style="color:#00ff87">python3 modules/bot.py --hours 24</code> — sürekli mod<br>
-          <code style="color:#00ff87">python3 modules/bot.py --once</code> — tek seferlik
-        </div>
-        """, unsafe_allow_html=True)
-
-    st.markdown("<div style='height:20px'></div>", unsafe_allow_html=True)
-
-    # ── Watchlist ──
-    watchlist = get_watchlist()
-    if not watchlist:
-        st.markdown("""
-        <div class="empty-state" style="padding:60px 40px;">
-          <div class="empty-icon">📌</div>
-          <div class="empty-title">Takip listesi boş</div>
-          <div class="empty-sub">Bir YouTube analizi yapıp<br><b>Takip Listesine Ekle</b>'ye tıklayın.</div>
-        </div>
-        """, unsafe_allow_html=True)
-    else:
-        st.markdown(f'<div style="font-size:11px;color:#5a5a7a;letter-spacing:1.5px;'
-                    f'text-transform:uppercase;margin-bottom:12px;">'
-                    f'{len(watchlist)} Sanatçı Takip Ediliyor</div>', unsafe_allow_html=True)
-        for entry in watchlist:
-            c1, c2, c3 = st.columns([3, 2, 1])
-            with c1:
+        alerts = get_alerts(limit=10)
+        if alerts:
+            st.markdown('<div style="height:12px"></div>', unsafe_allow_html=True)
+            st.markdown('<div style="font-size:11px;color:#5a5a7a;letter-spacing:1.5px;'
+                        'text-transform:uppercase;margin-bottom:12px;">🚨 Son Kritik Sinyaller</div>',
+                        unsafe_allow_html=True)
+            for a in alerts:
+                icon  = "🟡" if a["signal_type"] == "HIGH_SCORE" else "🟢"
+                label = "Yüksek Skor" if a["signal_type"] == "HIGH_SCORE" else "Yükselen"
+                css   = "high" if a["signal_type"] == "HIGH_SCORE" else "rising"
                 st.markdown(
-                    f'<div class="wl-name">{entry["artist_name"].replace("_"," ")}</div>'
-                    f'<div class="wl-url">{entry["youtube_url"]}</div>',
+                    f'<div class="alert-pill {css}">'
+                    f'<div>{icon}</div>'
+                    f'<div><div class="alert-artist">{a["artist_name"].replace("_"," ")}</div>'
+                    f'<div class="alert-type">{label}</div></div>'
+                    f'<div class="alert-time">{a["created_at"][:16].replace("T"," ")}</div>'
+                    f'</div>',
                     unsafe_allow_html=True
                 )
-            with c2:
-                last = entry["last_check_date"]
-                checked = last[:16].replace("T", " ") if last else "Henüz kontrol edilmedi"
-                added   = entry["added_date"][:10]    if entry["added_date"] else ""
-                st.markdown(
-                    f'<div class="wl-meta">Son kontrol: {checked}</div>'
-                    f'<div class="wl-meta">Eklenme: {added}</div>',
-                    unsafe_allow_html=True
-                )
-            with c3:
-                if st.button("🗑", key=f"rm_{entry['youtube_url']}"):
-                    remove_from_watchlist(entry["youtube_url"])
-                    st.rerun()
-            st.markdown('<hr style="border-color:#1c1c30;margin:8px 0;">', unsafe_allow_html=True)
 
-    # ── Alerts ──
-    alerts = get_alerts(limit=10)
-    if alerts:
-        st.markdown('<div style="height:12px"></div>', unsafe_allow_html=True)
-        st.markdown('<div style="font-size:11px;color:#5a5a7a;letter-spacing:1.5px;'
-                    'text-transform:uppercase;margin-bottom:12px;">🚨 Son Kritik Sinyaller</div>',
-                    unsafe_allow_html=True)
-        for a in alerts:
-            icon  = "🟡" if a["signal_type"] == "HIGH_SCORE" else "🟢"
-            label = "Yüksek Skor" if a["signal_type"] == "HIGH_SCORE" else "Yükselen"
-            css   = "high" if a["signal_type"] == "HIGH_SCORE" else "rising"
-            st.markdown(
-                f'<div class="alert-pill {css}">'
-                f'<div>{icon}</div>'
-                f'<div><div class="alert-artist">{a["artist_name"].replace("_"," ")}</div>'
-                f'<div class="alert-type">{label}</div></div>'
-                f'<div class="alert-time">{a["created_at"][:16].replace("T"," ")}</div>'
-                f'</div>',
-                unsafe_allow_html=True
-            )
-
-    # ── Log viewer ──
-    log_path = Path("logs/bot.log")
-    if log_path.exists():
-        st.markdown("<div style='height:12px'></div>", unsafe_allow_html=True)
-        with st.expander("📋 Bot Logları (son 50 satır)"):
-            lines = log_path.read_text(encoding="utf-8").splitlines()
-            st.code("\n".join(lines[-50:]), language=None)
+        log_path = Path("logs/bot.log")
+        if log_path.exists():
+            st.markdown("<div style='height:12px'></div>", unsafe_allow_html=True)
+            with st.expander("📋 Bot Logları (son 50 satır)"):
+                lines = log_path.read_text(encoding="utf-8").splitlines()
+                st.code("\n".join(lines[-50:]), language=None)
