@@ -25,20 +25,23 @@ def generate_radar_chart(scores: dict, artist_name: str) -> str:
     angles += angles[:1]
 
     fig, ax = plt.subplots(figsize=(5, 5), subplot_kw=dict(polar=True))
-    fig.patch.set_facecolor("#1a1a2e")
-    ax.set_facecolor("#16213e")
+    fig.patch.set_facecolor("#0E1117")
+    ax.set_facecolor("#161B22")
 
-    ax.plot(angles, values, "o-", linewidth=2, color="#e94560")
-    ax.fill(angles, values, alpha=0.25, color="#e94560")
+    # Electric Purple line + transparent fill (Neon Mint border)
+    ax.plot(angles, values, "o-", linewidth=2.5, color="#00FFAA",
+            markerfacecolor="#00FFAA", markeredgecolor="#0E1117", markersize=5)
+    ax.fill(angles, values, alpha=0.18, color="#8A2BE2")
 
     ax.set_ylim(0, 10)
     ax.set_xticks(angles[:-1])
-    ax.set_xticklabels(labels, color="white", size=9, fontweight="bold")
+    ax.set_xticklabels(labels, color="#E8EDF4", size=9, fontweight="bold")
     ax.set_yticks([2, 4, 6, 8, 10])
-    ax.set_yticklabels(["2", "4", "6", "8", "10"], color="#555", size=7)
-    ax.grid(color="#444", alpha=0.4)
-    ax.spines["polar"].set_color("#444")
-    ax.set_title(artist_name.replace("_", " "), color="white", size=12, fontweight="bold", pad=20)
+    ax.set_yticklabels(["2", "4", "6", "8", "10"], color="#374151", size=7)
+    ax.grid(color="#21262D", alpha=0.8, linewidth=0.8)
+    ax.spines["polar"].set_color("#21262D")
+    ax.set_title(artist_name.replace("_", " "), color="#E8EDF4",
+                 size=12, fontweight="bold", pad=20)
 
     buf = io.BytesIO()
     plt.savefig(buf, format="png", bbox_inches="tight", facecolor="#1a1a2e", dpi=150)

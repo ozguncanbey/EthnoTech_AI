@@ -25,41 +25,62 @@ st.set_page_config(
     initial_sidebar_state="expanded",
 )
 
-# ── LUXURY CSS ────────────────────────────────────────────────
+# ══════════════════════════════════════════════════════════════
+# UI DESIGN SYSTEM — EthnoTech AI Scout v1.0
+# Palette: Anthracite Dark × Neon Mint × Electric Purple
+# ══════════════════════════════════════════════════════════════
 st.markdown("""
 <style>
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Inter:ital,opsz,wght@0,14..32,300..900;1,14..32,300..900&display=swap');
 
+/* ── Design Tokens ── */
 :root {
-  --bg:      #07070f;
-  --bg2:     #0e0e1a;
-  --bg3:     #161625;
-  --accent:  #00ff87;
-  --gold:    #ffd700;
-  --blue:    #00d4ff;
-  --purple:  #a855f7;
-  --pink:    #ec4899;
-  --red:     #ff4757;
-  --text:    #e8e8f4;
-  --muted:   #5a5a7a;
-  --border:  #1c1c30;
-  --grad:    linear-gradient(135deg, #00ff87, #00d4ff);
-  --grad-g:  linear-gradient(90deg,  #00ff87, #00d4ff);
-  --grad-p:  linear-gradient(90deg,  #a855f7, #ec4899);
-  --grad-o:  linear-gradient(90deg,  #ffd700, #ff9500);
-  --grad-b:  linear-gradient(90deg,  #00d4ff, #0080ff);
+  /* Surfaces */
+  --bg:      #0E1117;
+  --bg2:     #161B22;
+  --bg3:     #1E2530;
+
+  /* Brand */
+  --accent:  #00FFAA;
+  --purple:  #8A2BE2;
+  --cyan:    #00D4FF;
+  --gold:    #FFD700;
+  --red:     #FF4757;
+  --pink:    #EC4899;
+
+  /* Text */
+  --text:    #E8EDF4;
+  --muted:   #6B7280;
+
+  /* Borders */
+  --border:  #21262D;
+
+  /* Gradients */
+  --grad:       linear-gradient(135deg, #00FFAA, #00D4FF);
+  --grad-hero:  linear-gradient(135deg, #00FFAA 0%, #8A2BE2 100%);
+  --grad-g:     linear-gradient(90deg,  #00FFAA, #00D4FF);
+  --grad-p:     linear-gradient(90deg,  #8A2BE2, #EC4899);
+  --grad-o:     linear-gradient(90deg,  #FFD700, #FF9500);
+  --grad-b:     linear-gradient(90deg,  #00D4FF, #0080FF);
+
+  /* Glows */
+  --glow-mint:   0 0 24px rgba(0,255,170,0.18);
+  --glow-purple: 0 0 24px rgba(138,43,226,0.22);
+  --glow-card:   0 12px 40px rgba(0,0,0,0.5);
 }
 
+/* ── Base ── */
 html, body, [data-testid="stApp"] {
   background: var(--bg) !important;
   color: var(--text) !important;
-  font-family: 'Inter', sans-serif !important;
+  font-family: 'Inter', system-ui, sans-serif !important;
 }
 
 /* ── Scrollbar ── */
-::-webkit-scrollbar { width: 6px; }
-::-webkit-scrollbar-track { background: var(--bg2); }
+::-webkit-scrollbar { width: 5px; }
+::-webkit-scrollbar-track { background: var(--bg); }
 ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: #30363D; }
 
 /* ── Sidebar ── */
 [data-testid="stSidebar"] {
@@ -73,30 +94,34 @@ html, body, [data-testid="stApp"] {
   background: var(--bg3) !important;
   border: 1px solid var(--border) !important;
   color: var(--text) !important;
-  border-radius: 8px !important;
+  border-radius: 10px !important;
+  font-size: 13px !important;
 }
 [data-testid="stSidebar"] [data-testid="stTextInput"] input:focus,
 [data-testid="stSidebar"] textarea:focus {
   border-color: var(--accent) !important;
-  box-shadow: 0 0 0 1px var(--accent) !important;
+  box-shadow: 0 0 0 2px rgba(0,255,170,0.15) !important;
 }
 
 /* ── Tabs ── */
-div[data-testid="stTabs"] {
-  border-bottom: 1px solid var(--border);
-}
+div[data-testid="stTabs"] { border-bottom: 1px solid var(--border); }
 div[data-testid="stTabs"] button {
   color: var(--muted) !important;
   font-weight: 600 !important;
   font-size: 14px !important;
-  letter-spacing: 0.3px !important;
-  padding: 10px 20px !important;
-  transition: color 0.2s !important;
+  letter-spacing: 0.4px !important;
+  padding: 12px 24px !important;
+  transition: all 0.2s ease !important;
+  border-radius: 0 !important;
 }
-div[data-testid="stTabs"] button:hover { color: var(--text) !important; }
+div[data-testid="stTabs"] button:hover {
+  color: var(--text) !important;
+  background: rgba(255,255,255,0.03) !important;
+}
 div[data-testid="stTabs"] button[aria-selected="true"] {
   color: var(--accent) !important;
   border-bottom: 2px solid var(--accent) !important;
+  text-shadow: 0 0 16px rgba(0,255,170,0.4) !important;
 }
 
 /* ── Buttons ── */
@@ -104,18 +129,20 @@ div[data-testid="stTabs"] button[aria-selected="true"] {
   background: var(--grad) !important;
   color: #000 !important;
   border: none !important;
-  border-radius: 8px !important;
+  border-radius: 10px !important;
   font-weight: 700 !important;
   font-size: 13px !important;
   letter-spacing: 0.5px !important;
   width: 100% !important;
-  padding: 10px 16px !important;
-  transition: opacity 0.2s, transform 0.15s !important;
+  padding: 11px 18px !important;
+  transition: opacity 0.18s, transform 0.15s, box-shadow 0.18s !important;
 }
 .stButton > button:hover {
-  opacity: 0.88 !important;
-  transform: translateY(-1px) !important;
+  opacity: 0.9 !important;
+  transform: translateY(-2px) !important;
+  box-shadow: var(--glow-mint) !important;
 }
+.stButton > button:active { transform: translateY(0) !important; }
 
 /* ── Sidebar artist mini-buttons ── */
 .sb-artist > button {
@@ -128,30 +155,56 @@ div[data-testid="stTabs"] button[aria-selected="true"] {
   text-align: left !important;
   margin-bottom: 4px !important;
   padding: 8px 12px !important;
+  transition: all 0.15s !important;
 }
 .sb-artist > button:hover {
   border-color: var(--accent) !important;
   color: var(--accent) !important;
+  background: rgba(0,255,170,0.06) !important;
 }
 
-/* ── st.metric override ── */
+/* ── st.metric ── */
 [data-testid="stMetric"] {
-  background: var(--bg2);
-  border: 1px solid var(--border);
-  border-radius: 12px;
-  padding: 18px 20px !important;
+  background: var(--bg2) !important;
+  border: 1px solid var(--border) !important;
+  border-radius: 14px !important;
+  padding: 18px 22px !important;
+  transition: border-color 0.2s !important;
 }
-[data-testid="stMetricValue"] { color: var(--text) !important; font-weight: 700 !important; }
-[data-testid="stMetricLabel"] { color: var(--muted) !important; font-size: 12px !important; }
+[data-testid="stMetric"]:hover { border-color: #30363D !important; }
+[data-testid="stMetricValue"] {
+  color: var(--text) !important;
+  font-weight: 800 !important;
+  font-size: 28px !important;
+  letter-spacing: -0.5px !important;
+}
+[data-testid="stMetricLabel"] {
+  color: var(--muted) !important;
+  font-size: 11px !important;
+  letter-spacing: 1px !important;
+  text-transform: uppercase !important;
+}
 
-/* ── Divider ── */
+/* ── Alerts / Info boxes ── */
 hr { border-color: var(--border) !important; }
-
-/* ── st.info / st.success / st.error ── */
 [data-testid="stAlert"] {
   background: var(--bg3) !important;
-  border-radius: 10px !important;
-  border-left-color: var(--accent) !important;
+  border-radius: 12px !important;
+  border-left: 3px solid var(--accent) !important;
+  font-size: 13px !important;
+}
+
+/* ── Progress bar ── */
+[data-testid="stProgressBar"] > div {
+  background: var(--grad) !important;
+  border-radius: 4px !important;
+}
+
+/* ── st.status ── */
+[data-testid="stStatusWidget"] {
+  background: var(--bg2) !important;
+  border: 1px solid var(--border) !important;
+  border-radius: 12px !important;
 }
 
 /* ── LIVE PULSE ── */
@@ -162,163 +215,173 @@ hr { border-color: var(--border) !important; }
   display: flex;
   align-items: center;
   gap: 8px;
-  background: rgba(0,255,135,0.08);
-  border: 1px solid rgba(0,255,135,0.25);
+  background: rgba(0,255,170,0.07);
+  border: 1px solid rgba(0,255,170,0.2);
   border-radius: 20px;
   padding: 6px 14px;
-  font-size: 11px;
-  font-weight: 700;
+  font-size: 10px;
+  font-weight: 800;
   color: var(--accent);
-  letter-spacing: 1.5px;
+  letter-spacing: 2px;
   text-transform: uppercase;
-  backdrop-filter: blur(8px);
+  backdrop-filter: blur(12px);
 }
 .pulse-dot {
-  width: 8px; height: 8px;
+  width: 7px; height: 7px;
   background: var(--accent);
   border-radius: 50%;
-  animation: pulse-ring 2s ease-in-out infinite;
+  animation: pulse-ring 2.5s ease-in-out infinite;
 }
 @keyframes pulse-ring {
-  0%   { box-shadow: 0 0 0 0 rgba(0,255,135,0.8); }
-  70%  { box-shadow: 0 0 0 9px rgba(0,255,135,0); }
-  100% { box-shadow: 0 0 0 0 rgba(0,255,135,0); }
+  0%   { box-shadow: 0 0 0 0 rgba(0,255,170,0.8); }
+  70%  { box-shadow: 0 0 0 8px rgba(0,255,170,0); }
+  100% { box-shadow: 0 0 0 0 rgba(0,255,170,0); }
 }
 
 /* ── MAIN HEADER ── */
 .main-header {
-  padding: 32px 0 24px;
+  padding: 36px 0 28px;
   border-bottom: 1px solid var(--border);
-  margin-bottom: 28px;
+  margin-bottom: 32px;
 }
-.brand-row {
-  display: flex;
-  align-items: center;
-  gap: 14px;
-  margin-bottom: 6px;
-}
+.brand-row { display: flex; align-items: center; gap: 14px; margin-bottom: 8px; }
 .brand-icon {
-  font-size: 28px;
-  background: var(--grad);
+  font-size: 30px;
+  background: var(--grad-hero);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
 }
 .brand-title {
-  font-size: 26px;
-  font-weight: 800;
-  letter-spacing: -0.5px;
-  background: var(--grad);
+  font-size: 28px;
+  font-weight: 900;
+  letter-spacing: -1px;
+  background: var(--grad-hero);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
 }
 .brand-sub {
-  font-size: 12px;
+  font-size: 11px;
   color: var(--muted);
-  letter-spacing: 2px;
+  letter-spacing: 3px;
   text-transform: uppercase;
-  margin-left: 42px;
+  margin-left: 44px;
 }
 
 /* ── ARTIST CARDS ── */
 .artist-card {
   background: var(--bg2);
   border: 1px solid var(--border);
-  border-radius: 16px;
-  padding: 24px 28px;
+  border-radius: 18px;
+  padding: 26px 30px;
   margin-bottom: 16px;
-  transition: border-color 0.25s, transform 0.2s, box-shadow 0.25s;
+  transition: all 0.25s ease;
   cursor: default;
+  box-shadow: var(--glow-card);
 }
 .artist-card:hover {
-  border-color: rgba(0,255,135,0.4);
-  transform: translateY(-2px);
-  box-shadow: 0 8px 32px rgba(0,255,135,0.06);
+  border-color: rgba(0,255,170,0.35);
+  transform: translateY(-3px);
+  box-shadow: var(--glow-card), 0 0 40px rgba(0,255,170,0.08);
+}
+.artist-card.sign-now-card {
+  border-color: rgba(0,255,170,0.25);
+  box-shadow: var(--glow-card), 0 0 30px rgba(0,255,170,0.1);
 }
 .card-header {
   display: flex;
   align-items: center;
   gap: 14px;
-  margin-bottom: 22px;
+  margin-bottom: 24px;
 }
 .card-rank { font-size: 22px; min-width: 32px; }
 .card-name {
   flex: 1;
-  font-size: 19px;
+  font-size: 20px;
   font-weight: 700;
   color: var(--text);
+  letter-spacing: -0.3px;
 }
 .card-london {
   display: inline-block;
-  font-size: 24px;
-  font-weight: 800;
-  background: var(--grad);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
+  font-size: 26px;
+  font-weight: 900;
+  letter-spacing: -0.5px;
   flex-shrink: 0;
 }
 .card-date {
-  display: inline-block;
   font-size: 11px;
   color: var(--muted);
   margin-left: 4px;
   align-self: flex-end;
-  padding-bottom: 3px;
+  padding-bottom: 4px;
   flex-shrink: 0;
 }
 .card-trend {
   font-size: 11px;
   font-weight: 700;
-  padding: 3px 10px;
+  padding: 4px 11px;
   border-radius: 12px;
   letter-spacing: 0.5px;
 }
-.trend-r { background: rgba(0,255,135,0.12); color: #00ff87; border: 1px solid rgba(0,255,135,0.3); }
-.trend-s { background: rgba(255,215,0,0.12);  color: #ffd700; border: 1px solid rgba(255,215,0,0.3); }
-.trend-d { background: rgba(255,71,87,0.12);  color: #ff4757; border: 1px solid rgba(255,71,87,0.3); }
+.trend-r { background: rgba(0,255,170,0.1); color: #00FFAA; border: 1px solid rgba(0,255,170,0.3); }
+.trend-s { background: rgba(255,215,0,0.1); color: #FFD700; border: 1px solid rgba(255,215,0,0.3); }
+.trend-d { background: rgba(255,71,87,0.1); color: #FF4757; border: 1px solid rgba(255,71,87,0.3); }
+
+/* ── SIGN NOW Badge ── */
 .sign-now-badge {
   font-size: 10px;
-  font-weight: 800;
-  padding: 3px 9px;
+  font-weight: 900;
+  padding: 4px 11px;
   border-radius: 10px;
-  letter-spacing: 1px;
-  background: rgba(0,255,135,0.18);
-  color: #00ff87;
-  border: 1px solid rgba(0,255,135,0.5);
-  animation: pulse-sign 2s infinite;
+  letter-spacing: 1.2px;
+  background: linear-gradient(135deg, rgba(0,255,170,0.2), rgba(138,43,226,0.2));
+  color: var(--accent);
+  border: 1px solid rgba(0,255,170,0.45);
+  animation: sign-pulse 2.5s ease-in-out infinite;
 }
-@keyframes pulse-sign {
-  0%,100% { box-shadow: 0 0 0 0 rgba(0,255,135,0.4); }
-  50%      { box-shadow: 0 0 8px 3px rgba(0,255,135,0.2); }
+.sign-now-badge.extreme {
+  color: #fff;
+  background: linear-gradient(135deg, rgba(138,43,226,0.3), rgba(236,72,153,0.3));
+  border-color: rgba(138,43,226,0.5);
+  animation: sign-pulse-purple 2.5s ease-in-out infinite;
+}
+@keyframes sign-pulse {
+  0%,100% { box-shadow: 0 0 0 0 rgba(0,255,170,0.5); }
+  50%      { box-shadow: 0 0 12px 4px rgba(0,255,170,0.15); }
+}
+@keyframes sign-pulse-purple {
+  0%,100% { box-shadow: 0 0 0 0 rgba(138,43,226,0.5); }
+  50%      { box-shadow: 0 0 12px 4px rgba(138,43,226,0.2); }
 }
 
 /* ── METRIC BARS ── */
 .metric-row {
   display: flex;
   align-items: center;
-  gap: 12px;
-  margin-bottom: 10px;
+  gap: 14px;
+  margin-bottom: 12px;
 }
 .metric-label {
   width: 140px;
-  font-size: 11px;
-  font-weight: 600;
+  font-size: 10px;
+  font-weight: 700;
   color: var(--muted);
   text-transform: uppercase;
-  letter-spacing: 0.8px;
+  letter-spacing: 1px;
   flex-shrink: 0;
 }
 .metric-track {
   flex: 1;
-  height: 5px;
+  height: 6px;
   background: var(--bg3);
-  border-radius: 3px;
+  border-radius: 4px;
   overflow: hidden;
 }
 .metric-fill {
   height: 100%;
-  border-radius: 3px;
+  border-radius: 4px;
   width: 0;
-  animation: fillBar 1.1s cubic-bezier(.4,0,.2,1) forwards;
+  animation: fillBar 1.2s cubic-bezier(.4,0,.2,1) forwards;
 }
 .mf-green  { background: var(--grad-g); }
 .mf-blue   { background: var(--grad-b); }
@@ -326,56 +389,93 @@ hr { border-color: var(--border) !important; }
 .mf-purple { background: var(--grad-p); }
 @keyframes fillBar { to { width: var(--w); } }
 .metric-val {
-  width: 32px;
+  width: 36px;
   text-align: right;
-  font-size: 13px;
-  font-weight: 700;
+  font-size: 14px;
+  font-weight: 800;
   color: var(--text);
   flex-shrink: 0;
+  letter-spacing: -0.3px;
 }
 
 /* ── EMPTY STATE ── */
 .empty-state {
   text-align: center;
   padding: 100px 40px;
-  color: var(--muted);
 }
-.empty-icon { font-size: 52px; margin-bottom: 18px; }
-.empty-title { font-size: 20px; font-weight: 700; color: #3a3a5c; margin-bottom: 8px; }
-.empty-sub { font-size: 14px; color: var(--muted); }
-
-/* ── WATCHLIST CARD ── */
-.wl-card {
-  background: var(--bg2);
-  border: 1px solid var(--border);
-  border-radius: 12px;
-  padding: 16px 20px;
+.empty-icon { font-size: 56px; margin-bottom: 20px; opacity: 0.6; }
+.empty-title {
+  font-size: 22px;
+  font-weight: 800;
+  color: #374151;
   margin-bottom: 10px;
-  display: flex;
-  align-items: center;
-  gap: 16px;
+  letter-spacing: -0.3px;
 }
+.empty-sub { font-size: 14px; color: var(--muted); line-height: 1.7; }
+.empty-cta {
+  display: inline-block;
+  margin-top: 20px;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--accent);
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+  border: 1px solid rgba(0,255,170,0.3);
+  padding: 8px 20px;
+  border-radius: 20px;
+  background: rgba(0,255,170,0.06);
+}
+
+/* ── WATCHLIST ── */
 .wl-name { font-weight: 700; font-size: 15px; color: var(--text); }
-.wl-url  { font-size: 11px; color: var(--muted); margin-top: 2px; }
+.wl-url  { font-size: 11px; color: var(--muted); margin-top: 2px; word-break: break-all; }
 .wl-meta { font-size: 11px; color: var(--muted); }
 
 /* ── ALERT PILL ── */
 .alert-pill {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 14px;
   background: var(--bg2);
   border: 1px solid var(--border);
   border-left: 3px solid var(--accent);
-  border-radius: 10px;
-  padding: 12px 16px;
+  border-radius: 12px;
+  padding: 13px 18px;
   margin-bottom: 8px;
+  transition: border-color 0.2s;
 }
-.alert-pill.rising { border-left-color: #00ff87; }
-.alert-pill.high   { border-left-color: #ffd700; }
+.alert-pill:hover { border-color: rgba(0,255,170,0.25); }
+.alert-pill.rising { border-left-color: var(--accent); }
+.alert-pill.high   { border-left-color: var(--gold); }
 .alert-artist { font-weight: 700; font-size: 14px; }
-.alert-type   { font-size: 11px; color: var(--muted); }
-.alert-time   { margin-left: auto; font-size: 11px; color: var(--muted); }
+.alert-type   { font-size: 11px; color: var(--muted); margin-top: 2px; }
+.alert-time   { margin-left: auto; font-size: 11px; color: var(--muted); white-space: nowrap; }
+
+/* ── Info card (replaces st.info) ── */
+.info-card {
+  background: var(--bg3);
+  border: 1px solid var(--border);
+  border-left: 3px solid var(--accent);
+  border-radius: 12px;
+  padding: 14px 18px;
+  font-size: 13px;
+  color: var(--text);
+  margin: 8px 0;
+}
+
+/* ── Sidebar version badge ── */
+.version-badge {
+  display: inline-block;
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+  color: var(--muted);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 2px 7px;
+  margin-top: 4px;
+}
 </style>
 """, unsafe_allow_html=True)
 
@@ -431,19 +531,25 @@ def _artist_card(r: dict, rank: str, delay_base: float = 0.0) -> str:
     )
 
     london = float(s["Londra Uyumluluğu"])
-    if london >= 9.0:
-        london_color = "#4ade80"
-        sign_label   = "⚡ SIGN NOW" if london < 9.5 else "🔥 SIGN NOW 9.5+"
-        sign_badge   = f'<span class="sign-now-badge">{sign_label}</span>'
+    if london >= 9.5:
+        london_color = "#00FFAA"
+        sign_badge   = '<span class="sign-now-badge extreme">🔥 SIGN NOW 9.5+</span>'
+        card_class   = "artist-card sign-now-card"
+    elif london >= 9.0:
+        london_color = "#00FFAA"
+        sign_badge   = '<span class="sign-now-badge">⚡ SIGN NOW</span>'
+        card_class   = "artist-card sign-now-card"
     elif london >= 7.0:
-        london_color = "#facc15"
+        london_color = "#FFD700"
         sign_badge   = ""
+        card_class   = "artist-card"
     else:
-        london_color = "#f87171"
+        london_color = "#FF4757"
         sign_badge   = ""
+        card_class   = "artist-card"
 
     return (
-        f'<div class="artist-card">'
+        f'<div class="{card_class}">'
         f'<div class="card-header">'
         f'<span class="card-rank">{rank}</span>'
         f'<span class="card-name">{name}</span>'
@@ -464,22 +570,23 @@ def _run_analysis(artist_name: str, raw_comments: str,
                   youtube_url: str = None) -> dict:
     prev_scores = get_latest_scores(artist_name)
 
-    with st.status("Analiz başlatılıyor...", expanded=True) as status:
+    name_display = artist_name.replace("_", " ")
+    with st.status(f"🎵 {name_display} analiz ediliyor...", expanded=True) as status:
         if recent_str is not None and older_str is not None:
-            st.write("🤖 Trend analizi için AI çağrılıyor (15-20 sn)...")
+            st.write("🤖 Llama 3.3 70B — trend analizi başlatıldı (15–20 sn)...")
             report_text, trend_label = analyze_with_trend(recent_str, older_str, artist_name)
         else:
-            st.write("🤖 AI analizi yapılıyor (15-20 sn)...")
+            st.write("🤖 Llama 3.3 70B — yorum korpusu analiz ediliyor (15–20 sn)...")
             report_text = analyze_artist(raw_comments, artist_name)
             trend_label = None
 
-        st.write("📊 Puanlar çıkarılıyor ve radar grafiği oluşturuluyor...")
+        st.write("📊 Puanlar çıkarılıyor — radar grafiği oluşturuluyor...")
         scores = extract_scores(report_text)
         chart_b64 = generate_radar_chart(scores, artist_name)
         html = build_artist_html(report_text, artist_name, scores, chart_b64,
                                  trend_label, youtube_url)
 
-        st.write("💾 Rapor ve veritabanı kaydediliyor...")
+        st.write("🚨 Yatırım sinyalleri kontrol ediliyor...")
         REPORTS_DIR.mkdir(exist_ok=True)
         out = REPORTS_DIR / f"{artist_name}_rapor.html"
         out.write_text(html, encoding="utf-8")
@@ -490,7 +597,11 @@ def _run_analysis(artist_name: str, raw_comments: str,
         (REPORTS_DIR / "_ozet_rapor.html").write_text(build_summary_html(), encoding="utf-8")
         st.session_state.report_html = html
         st.session_state.current_artist = artist_name
-        status.update(label="✅ Analiz tamamlandı!", state="complete", expanded=False)
+        london = float(scores.get("Londra Uyumluluğu", 0))
+        status.update(
+            label=f"✅ {name_display} — {london:.1f}/10 London Score",
+            state="complete", expanded=False
+        )
 
     signals = process_signals(artist_name, scores, prev_scores, youtube_url=youtube_url)
     for sig in signals:
@@ -525,14 +636,17 @@ def _load_artist_report(artist_name: str) -> None:
 # ── SIDEBAR ───────────────────────────────────────────────────
 with st.sidebar:
     st.markdown("""
-    <div style="padding:20px 0 12px;">
-      <div style="font-size:20px;font-weight:800;background:linear-gradient(135deg,#00ff87,#00d4ff);
+    <div style="padding:22px 0 16px;">
+      <div style="font-size:22px;font-weight:900;letter-spacing:-0.8px;
+                  background:linear-gradient(135deg,#00FFAA,#8A2BE2);
                   -webkit-background-clip:text;-webkit-text-fill-color:transparent;">
-        ◈ EthnoTech AI Scout
+        ◈ EthnoTech AI
       </div>
-      <div style="font-size:10px;color:#5a5a7a;letter-spacing:2px;margin-top:4px;">
-        A&R INTELLIGENCE PLATFORM
+      <div style="font-size:10px;color:#6B7280;letter-spacing:2.5px;margin-top:3px;
+                  text-transform:uppercase;">
+        A&R Intelligence Platform
       </div>
+      <span class="version-badge">v1.0 Scout</span>
     </div>
     """, unsafe_allow_html=True)
     st.divider()
@@ -802,16 +916,29 @@ with tab_bot:
 
         if run_disc:
             artists_before = {r["artist"] for r in load_all()}
+            prog_bar = st.progress(0, text="🔍 YouTube derinliklerinde taranıyor...")
+            log_lines = []
 
-            with st.status("Keşif taraması başladı...", expanded=True) as disc_status:
+            def _disc_cb(msg: str):
+                log_lines.append(msg)
+                pct = min(int(len(log_lines) / max(len(disc_tags) * disc_max + 1, 1) * 100), 95)
+                label = msg if len(msg) < 70 else msg[:67] + "..."
+                prog_bar.progress(pct, text=label)
+
+            with st.status("🔍 Keşif Modu aktif...", expanded=True) as disc_status:
+                st.write("🔍 YouTube derinliklerinde taranıyor...")
                 disc_stats = run_hunter(
                     hashtags=disc_tags,
                     max_yt_per_tag=disc_max,
                     use_instagram=False,
-                    progress_cb=lambda m: st.write(m),
+                    progress_cb=_disc_cb,
                 )
+                st.write("🤖 Llama 3.3 analizi tamamlandı")
+                st.write("🚨 Yatırım sinyalleri değerlendiriliyor...")
+                prog_bar.progress(100, text="✅ Tarama tamamlandı")
+                n = disc_stats['analyzed']
                 disc_status.update(
-                    label=f"Tarama tamamlandı — {disc_stats['analyzed']} yeni sanatçı bulundu ✓",
+                    label=f"✅ Tamamlandı — {n} yeni sanatçı {'keşfedildi' if n else 'bulunamadı'}",
                     state="complete",
                 )
 
@@ -846,11 +973,17 @@ with tab_bot:
                     st.markdown(all_cards, unsafe_allow_html=True)
                 st.rerun()
             else:
-                st.info(
-                    "Bu hashtaglerde yeni sanatçı bulunamadı. "
-                    "Farklı hashtagler dene veya 'Video / Hashtag' sayısını artır.",
-                    icon="ℹ️",
-                )
+                st.markdown("""
+                <div class="empty-state" style="padding:60px 20px">
+                  <div class="empty-icon">🌐</div>
+                  <div class="empty-title">Bu hashtaglerde yeni yetenek bulunamadı</div>
+                  <div class="empty-sub">
+                    Tüm videolar daha önce taranmış, zaten popüler veya yorum eşiğinin altında.<br>
+                    Farklı hashtagler seç ya da "Video / Hashtag" sayısını artır.
+                  </div>
+                  <span class="empty-cta">Başka hashtagler dene →</span>
+                </div>
+                """, unsafe_allow_html=True)
 
         # ── Hashtag Performance (discovery tab'ında özet olarak) ─
         ht_data = get_hashtag_stats()
